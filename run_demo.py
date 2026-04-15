@@ -233,6 +233,8 @@ def main() -> None:
     args = parser.parse_args()
 
     sows = load_sows()
+    # Skip the synthetic data disclaimer entry (_readme key)
+    sows = [s for s in sows if "opportunity_id" in s]
 
     if args.index is not None:
         if args.index >= len(sows):

@@ -1,7 +1,7 @@
 # Outcome Readiness Review Agent — Copilot Instructions
 
 ## Project Overview
-A multi-agent pipeline for Contoso Consulting that reviews Statements of Work (SoWs) and determines whether an outcome-based commercial model should be `recommend`ed, `reconsider`ed, or `rule_out`ed. Three specialised agents handle different pipeline stages. Built on the **Microsoft Agent Framework** and deployed to **Microsoft Foundry**.
+A multi-agent pipeline (using Contoso Consulting as the fictional demo firm) that reviews Statements of Work (SoWs) and determines whether an outcome-based commercial model should be `recommend`ed, `reconsider`ed, or `rule_out`ed. Three specialised agents handle different pipeline stages. Built on the **Microsoft Agent Framework** and deployed to **Microsoft Foundry**.
 
 ## Architecture
 
@@ -69,7 +69,7 @@ SQLite file written by `run_demo.py` (via `log_run()`). Schema created in `setup
 `setup_eval.py` registers a `ContinuousEvaluationRule` (id: `outcome-hours-saved-rule`) that fires on every `RESPONSE_COMPLETED` event. The custom code evaluator (`hours_saved_metric`) normalises `hours_saved` against `MAX_HOURS_SAVED` to a 0–1 score. Results appear in Foundry portal under **Agents > Monitor > Evaluation Metrics**.
 
 ## Infrastructure
-`infra/main.bicep` targets the existing resource group `rg-outcome-readiness-agent` (Sweden Central). It does **not** create Application Insights — `appi-outcome-readiness` was created separately. The `projectEndpoint` output format is: `https://<account>.cognitiveservices.azure.com/api/projects/<project>`.
+`infra/main.bicep` deploys a Foundry AIServices account, project, and gpt-4o deployment in Sweden Central. The `projectEndpoint` output format is: `https://<account>.cognitiveservices.azure.com/api/projects/<project>`.
 
 ## Key SDK Packages
 | Package | Role |

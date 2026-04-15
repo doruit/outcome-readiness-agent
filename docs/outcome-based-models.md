@@ -6,11 +6,11 @@ Traditional IT services contracts price on **effort**: the client pays for the t
 
 **Outcome-based commercial models** flip this relationship. The supplier's fee is tied — wholly or partially — to measurable business results. If the result is achieved, the supplier earns more. If not, they earn less (or nothing).
 
-Examples from Contoso Consulting engagements:
-- A 15% reduction in supply chain holding costs
-- Claims processing time reduced from 14 days to 5 days
-- Customer satisfaction score above 4.2 / 5.0
-- A 60% reduction in manual touchpoints
+Illustrative examples of outcome KPIs that make this model work:
+- A double-digit percentage reduction in supply chain holding costs
+- Claims processing time cut from multiple weeks to a few days
+- Customer satisfaction score above a defined threshold
+- A significant reduction in manual processing touchpoints
 
 This creates stronger alignment, shared accountability, and better incentives for delivery quality. It also forces both sides to agree upfront on what "success" looks like — which is often the most valuable conversation of the deal.
 

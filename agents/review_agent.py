@@ -7,14 +7,14 @@ Port:        8089  (default)
 
 Responsibility:
     Receives a scan verdict (JSON from Scan Agent) plus the original SoW text
-    and performs a deep-dive commercial analysis:
-    - Designs concrete outcome-based pricing structures for each transformation opportunity
-    - Quantifies risk exposure of each pricing model
+    and performs a deeper commercial analysis:
+    - Designs illustrative outcome-based pricing structures for each transformation opportunity
+    - Assesses commercial risk exposure
     - Produces a recommended commercial term sheet outline
     - Estimates analyst hours saved vs. a manual commercial review workshop
 
 Value attribution metric:  hours_saved_review
-    Baseline: a commercial/pricing specialist takes 6–16 h to design an outcome model.
+    Baseline: a commercial specialist may spend several hours designing an outcome model.
     This agent produces a structured pricing proposal in <90 s.
 """
 
@@ -39,9 +39,9 @@ You are the Review Agent for Contoso Consulting's Outcome Readiness Review pipel
 STAGE: Under Review (commercial deep-dive)
 
 You receive the Scan Agent's JSON verdict and the original SoW text.
-Your job is to deepen the analysis: design concrete outcome-based pricing structures,
+Your job is to deepen the analysis: design illustrative outcome-based pricing structures,
 assess commercial risk, and produce a structured pricing proposal that an analyst
-can take directly into a client workshop.
+can use as input to a client conversation.
 
 Return ONLY a single valid JSON object — no prose, no markdown fences.
 
@@ -57,13 +57,13 @@ Return ONLY a single valid JSON object — no prose, no markdown fences.
       "outcome_metric":     "<the concrete KPI that triggers payment>",
       "baseline_value":     "<current state / baseline to measure improvement against>",
       "target_value":       "<the target that must be achieved for full payment>",
-      "payment_structure":  "<e.g. '80% fixed + 20% at-risk linked to outcome_metric'>",
+      "payment_structure":  "<illustrative description, e.g. 'fixed component + at-risk component linked to outcome_metric'>",
       "risk_level":         "<low | medium | high>",
       "risk_rationale":     "<1–2 sentences on main commercial risk>"
     }
   ],
   "overall_risk":      "<low | medium | high>",
-  "recommended_next_step": "<one sentence: what should happen in the client workshop>",
+  "recommended_next_step": "<one sentence: what should happen in the client conversation>",
   "hours_saved":       <float 6.0–16.0>,
   "value_attribution": {
     "agent":   "review-agent",
@@ -75,14 +75,14 @@ Return ONLY a single valid JSON object — no prose, no markdown fences.
 }
 
 Guidance:
-- pricing_model types:
-    outcome-share  : client pays % of measured value delivered
-    gainshare      : client and vendor split savings/uplift above baseline
+- pricing_model types (illustrative):
+    outcome-share  : fee linked to a percentage of measured value delivered
+    gainshare      : client and vendor share savings/uplift above baseline
     fixed-outcome  : fixed fee payable only on verified outcome achievement
-    SLA-penalty    : T&M base with penalty/bonus tied to SLA metric
+    SLA-penalty    : base fee with penalty/bonus tied to a service level metric
     hybrid         : combination of the above
-- Be specific about baseline_value — extract from the SoW if stated; otherwise state "not defined in SoW".
-- hours_saved: 10–16 for complex multi-tower engagements; 6–10 for single-tower.
+- Be specific about baseline_value — extract from the SoW if stated; otherwise note "not defined in SoW".
+- hours_saved: higher for complex multi-tower engagements; lower for single-tower.
 - Keep pricing_proposals aligned with transformation_opportunities from the Scan Agent.
 
 Always respond with the JSON object only.
