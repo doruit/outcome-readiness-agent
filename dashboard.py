@@ -526,112 +526,71 @@ body{
 /* ─── Page ───────────────────────────────────────────────────────── */
 .page{padding:1.75rem 2rem 5rem;max-width:1680px;margin:0 auto}
 
-/* ─── Concept strip ─────────────────────────────────────────────── */
-.concept-strip{
-  background:#0B1C32;
-  border-bottom:1px solid rgba(0,112,173,.3);
-  padding:.9rem 2rem;
+/* ─── Topbar model taxonomy ───────────────────────────────── */
+.topbar-model{
+  background:#0A1829;
+  border-bottom:1px solid #152236;
+  padding:0 2rem;
+  display:flex;align-items:center;height:28px;
 }
-.concept-strip-inner{
-  max-width:1680px;margin:0 auto;
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:0;
+.tm-pill{
+  display:flex;align-items:center;gap:.38rem;
+  padding:0 1rem;height:100%;
+  border-right:1px solid #1A2E48;
 }
-.concept-card{
-  display:flex;align-items:flex-start;gap:.75rem;
-  padding:.65rem 1.1rem;
-  border-right:1px solid rgba(255,255,255,.06);
-  transition:background .18s;
-}
-.concept-card:first-child{padding-left:.2rem}
-.concept-card:last-child{border-right:none}
-.concept-card:hover{background:rgba(255,255,255,.03)}
-.concept-icon{
-  width:2rem;height:2rem;flex-shrink:0;
-  border-radius:.35rem;
-  display:flex;align-items:center;justify-content:center;
-  font-size:.95rem;
-  margin-top:.05rem;
-}
-.concept-body{display:flex;flex-direction:column;gap:.18rem}
-.concept-tag{
-  font-size:.58rem;font-weight:800;letter-spacing:.1em;
-  text-transform:uppercase;
-  opacity:.65;
-}
-.concept-name{
-  font-size:.8rem;font-weight:700;
-  color:#E8F2FA;
-  letter-spacing:-.01em;
-  line-height:1.2;
-}
-.concept-desc{
-  font-size:.7rem;font-weight:400;
-  color:#7A9AB8;
-  line-height:1.4;
-}
-@media(max-width:899px){
-  .concept-strip-inner{grid-template-columns:repeat(2,1fr)}
-  .concept-card:nth-child(2){border-right:none}
-  .concept-card:nth-child(3){border-top:1px solid rgba(255,255,255,.06)}
-  .concept-card:nth-child(4){border-top:1px solid rgba(255,255,255,.06);border-right:none}
-}
-@media(max-width:499px){.concept-strip-inner{grid-template-columns:1fr}.concept-card{border-right:none;border-top:1px solid rgba(255,255,255,.06)}.concept-card:first-child{border-top:none}}
+.tm-pill:first-child{padding-left:0}
+.tm-pill:last-child{border-right:none}
+.tm-role{font-size:.59rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#3A5A78}
+.tm-name{font-size:.68rem;font-weight:500;color:#6A8AA4}
+.tm-sep{font-size:.6rem;color:#1E3450}
 
 /* ─── KPI row ────────────────────────────────────────────────────── */
 .kpi-row{
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  gap:1rem;
-  margin-bottom:1.5rem;
+  border-bottom:1px solid #DDE5EF;
 }
 .kpi-tile{
-  background:#fff;
-  border:1px solid rgba(0,0,0,.07);
-  border-radius:.6rem;
-  padding:1.1rem 1.4rem 1rem;
-  box-shadow:0 1px 4px rgba(14,30,56,.07),0 4px 12px rgba(14,30,56,.04);
+  padding:.8rem 1.2rem .75rem;
   position:relative;overflow:hidden;
+  border-right:1px solid #DDE5EF;
 }
+.kpi-tile:last-child{border-right:none}
 .kpi-tile::after{
   content:'';position:absolute;
-  bottom:0;left:0;right:0;height:3px;
+  bottom:0;left:0;right:0;height:2px;
   background:var(--kpi-accent,""" + CAP_BLUE + r""");
   border-radius:0 0 .6rem .6rem;
   opacity:.8;
 }
 .kpi-label{
-  font-size:.68rem;font-weight:600;letter-spacing:.07em;
-  text-transform:uppercase;color:#7A96B0;margin-bottom:.55rem;
+  font-size:.65rem;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:#5A7A96;margin-bottom:.3rem;
 }
 .kpi-value{
-  font-size:2.15rem;font-weight:700;line-height:1;
+  font-size:1.65rem;font-weight:700;line-height:1;
   color:var(--kpi-accent,""" + CAP_NAVY + r""");letter-spacing:-.02em;
 }
-.kpi-sub{font-size:.74rem;color:#9AAFBF;margin-top:.4rem;line-height:1.4}
+.kpi-sub{font-size:.7rem;color:#607A94;margin-top:.28rem;line-height:1.4}
 
 /* ─── Section header ─────────────────────────────────────────────── */
 .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem}
 .section-title{
-  font-size:.7rem;font-weight:700;text-transform:uppercase;
-  letter-spacing:.1em;color:#8BAABF;
+  font-size:.76rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:#3A5A78;
 }
 
 /* ─── Intake panel ───────────────────────────────────────────────── */
 .intake-panel{
-  background:#fff;
-  border:1px solid rgba(0,0,0,.07);
-  border-radius:.6rem;
-  padding:1.1rem 1.4rem 1.2rem;
-  box-shadow:0 1px 4px rgba(14,30,56,.06);
-  margin-bottom:1.5rem;
+  padding:.85rem 1.2rem 1rem;
+  flex:1;
+  border-top:1px solid #DDE5EF;
 }
 .intake-form{display:flex;gap:.85rem;flex-wrap:wrap;align-items:flex-end}
 .intake-field{display:flex;flex-direction:column;gap:.3rem;flex:1;min-width:150px}
 .intake-field label{
-  font-size:.66rem;font-weight:700;text-transform:uppercase;
-  letter-spacing:.08em;color:#8BAABF;
+  font-size:.72rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.07em;color:#4A6A84;
 }
 .intake-field input[type=text]{
   border:1.5px solid """ + CAP_BORDER + r""";
@@ -680,9 +639,17 @@ body{
 .intake-status.error{color:#C93030}
 .intake-status.ok{color:#1E9160}
 
-/* ─── Workspace split ────────────────────────────────────────────── */
-.workspace{display:grid;grid-template-columns:1fr 410px;gap:1.4rem;align-items:start}
-.board-col{min-width:0}
+/* ─── Layout ─────────────────────────────────────────────────────── */
+.combined-panel{
+  background:#fff;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:.7rem;
+  box-shadow:0 2px 8px rgba(14,30,56,.07),0 8px 28px rgba(14,30,56,.05);
+  overflow:hidden;
+  margin-top:1.4rem;
+}
+.left-col{min-width:0;display:flex;flex-direction:column}
+.board-section{margin-top:1.4rem}
 .board-scroll{overflow-x:auto;padding-bottom:.75rem}
 .pipeline{
   display:grid;
@@ -703,24 +670,26 @@ body{
 .lane-header{display:flex;align-items:center;gap:.35rem;margin-bottom:.2rem}
 .lane-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--lane-color,""" + CAP_BLUE + r""")}
 .lane-title{
-  font-size:.78rem;font-weight:700;
+  font-size:.84rem;font-weight:700;
   color:""" + CAP_NAVY + r""";flex:1;
-  letter-spacing:.01em;
+  letter-spacing:.01em;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .lane-count{
-  background:rgba(0,0,0,.07);
-  color:#607A96;
+  background:rgba(0,0,0,.09);
+  color:#3A5A78;
   border-radius:9999px;
-  font-size:.64rem;font-weight:700;
-  padding:.07rem .42rem;
+  font-size:.68rem;font-weight:700;
+  padding:.07rem .45rem;
+  flex-shrink:0;
 }
-.lane-hint{font-size:.66rem;color:#AAC0D0;margin-bottom:.6rem;line-height:1.4}
+.lane-hint{font-size:.72rem;color:#6A8AA4;margin-bottom:.65rem;line-height:1.45}
 .lane-cards{display:flex;flex-direction:column;gap:.5rem}
 .lane-empty{
-  font-size:.74rem;color:#C8D8E4;
+  font-size:.76rem;color:#7A9AB8;
   font-style:italic;
-  padding:.4rem .1rem;
-  border:1px dashed #DDE8F0;
+  padding:.55rem .3rem;
+  border:1px dashed #C8D8E8;
   border-radius:.35rem;
   text-align:center;
 }
@@ -746,27 +715,30 @@ body{
   box-shadow:0 0 0 3px rgba(0,112,173,.15),0 4px 12px rgba(14,30,56,.1);
 }
 .card-opp{
-  font-size:.62rem;color:#A4BBCC;
+  font-size:.67rem;color:#6A8AA4;
   letter-spacing:.04em;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis;
   margin-bottom:.15rem;
   font-variant-numeric:tabular-nums;
 }
 .card-name{
-  font-size:.82rem;font-weight:600;
-  color:""" + CAP_NAVY + r""";line-height:1.35;
+  font-size:.88rem;font-weight:600;
+  color:""" + CAP_NAVY + r""";line-height:1.4;
   display:-webkit-box;-webkit-line-clamp:2;
   -webkit-box-orient:vertical;overflow:hidden;
-  margin-bottom:.4rem;
+  word-break:break-word;
+  margin-bottom:.45rem;
 }
 .card-verdict-row{
   display:flex;align-items:center;
   justify-content:space-between;gap:.3rem;
-  margin-bottom:.3rem;
+  margin-bottom:.35rem;
+  min-width:0;
 }
 .card-hours{
-  font-size:.66rem;color:#8BAABF;white-space:nowrap;
+  font-size:.72rem;color:#4A6A84;white-space:nowrap;
   font-variant-numeric:tabular-nums;
+  flex-shrink:0;
 }
 .badge-rec{
   display:inline-flex;align-items:center;gap:.2rem;
@@ -776,13 +748,13 @@ body{
   line-height:1.2;
 }
 .card-summary{
-  font-size:.71rem;color:#607A96;line-height:1.45;
+  font-size:.76rem;color:#3A5470;line-height:1.5;
   margin-bottom:.3rem;
   display:-webkit-box;-webkit-line-clamp:2;
   -webkit-box-orient:vertical;overflow:hidden;
 }
 .card-kpi-gap{
-  font-size:.64rem;color:#8A4D0A;
+  font-size:.69rem;color:#7A3E05;
   background:#FDF4E7;border:1px solid #F0C87A;
   border-radius:.25rem;padding:.12rem .38rem;
   display:inline-flex;align-items:center;gap:.25rem;
@@ -790,8 +762,9 @@ body{
 }
 .card-mgr{
   display:flex;align-items:center;gap:.35rem;
-  font-size:.66rem;color:#8BAABF;
+  font-size:.72rem;color:#4A6A84;
   margin-bottom:.35rem;
+  min-width:0;
 }
 .mgr-avatar{
   width:20px;height:20px;border-radius:50%;
@@ -818,7 +791,7 @@ body{
 .card-btn{
   width:100%;padding:.3rem .45rem;
   border-radius:.3rem;
-  font-size:.7rem;font-weight:600;
+  font-size:.74rem;font-weight:600;
   cursor:pointer;border:1.5px solid transparent;
   text-align:center;
   transition:background .12s,border-color .12s,box-shadow .12s,transform .1s;
@@ -834,16 +807,42 @@ body{
 .btn-amber:hover{background:#FAEACA;border-color:#D4A840}
 
 /* ─── Detail panel ───────────────────────────────────────────────── */
-.detail-panel{
+.detail-panel{display:none}/* replaced by popup */
+
+/* ─── Detail popup overlay ─────────────────────────────────────── */
+.detail-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(8,18,38,.52);
+  backdrop-filter:blur(3px);
+  z-index:900;align-items:flex-start;justify-content:flex-end;
+  padding:calc(3.1rem + .75rem) 1.5rem 1.5rem;
+  box-sizing:border-box;
+}
+.detail-overlay.open{display:flex}
+.detail-popup{
   background:#fff;
-  border:1px solid rgba(0,0,0,.08);
-  border-radius:.6rem;
-  box-shadow:0 2px 8px rgba(14,30,56,.07),0 8px 24px rgba(14,30,56,.05);
-  position:sticky;top:calc(3.1rem + 1.75rem);
-  max-height:calc(100vh - 3.1rem - 3.5rem);
+  border:1px solid rgba(0,0,0,.09);
+  border-radius:.7rem;
+  box-shadow:0 8px 40px rgba(8,18,38,.22);
+  width:min(500px,94vw);
+  max-height:calc(100vh - 3.1rem - 2rem);
   overflow-y:auto;
   display:flex;flex-direction:column;
+  animation:modal-in .2s ease;
 }
+.detail-popup-close{
+  position:sticky;top:0;z-index:1;
+  display:flex;justify-content:flex-end;
+  padding:.4rem .5rem .1rem;
+  background:#fff;
+}
+.detail-popup-close button{
+  background:none;border:none;cursor:pointer;
+  font-size:1.25rem;color:#AABFCC;line-height:1;
+  padding:.15rem .3rem;border-radius:.3rem;
+  transition:color .12s,background .12s;
+}
+.detail-popup-close button:hover{color:#1E3450;background:#F0F4FA}
 .detail-empty{
   flex:1;display:flex;flex-direction:column;
   align-items:center;justify-content:center;
@@ -851,7 +850,7 @@ body{
   min-height:320px;
 }
 .detail-empty-icon{font-size:2.8rem;margin-bottom:.85rem;opacity:.35}
-.detail-empty-text{font-size:.88rem;line-height:1.6;color:#AABFCC}
+.detail-empty-text{font-size:.9rem;line-height:1.65;color:#6A8AA4}
 
 /* Detail panel inner content */
 .detail-top{
@@ -861,15 +860,16 @@ body{
   border-radius:.6rem .6rem 0 0;
 }
 .detail-opp{
-  font-size:.66rem;color:#AAC0CC;
-  letter-spacing:.05em;margin-bottom:.25rem;
-  text-transform:uppercase;font-weight:600;
+  font-size:.70rem;color:#5A7A94;
+  letter-spacing:.05em;margin-bottom:.28rem;
+  text-transform:uppercase;font-weight:700;
 }
 .detail-name{
-  font-size:1.05rem;font-weight:700;
+  font-size:1.08rem;font-weight:700;
   color:""" + CAP_NAVY + r""";line-height:1.35;
   margin-bottom:.65rem;
   letter-spacing:-.01em;
+  word-break:break-word;
 }
 .detail-verdict-row{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
 
@@ -890,14 +890,14 @@ body{
 /* Individual detail sections */
 .ds{display:flex;flex-direction:column;gap:.45rem}
 .ds-label{
-  font-size:.65rem;font-weight:700;text-transform:uppercase;
-  letter-spacing:.1em;color:#AAC0CC;
+  font-size:.70rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:#4A6A84;
 }
 
 /* Summary — hero block */
 .ds-summary{
-  font-size:.85rem;color:#2C4260;
-  line-height:1.65;
+  font-size:.88rem;color:#1E3450;
+  line-height:1.7;
 }
 
 /* Outcome / KPI list items */
@@ -910,20 +910,20 @@ body{
 }
 .detail-list-item::before{content:'✓';color:#1E9160;flex-shrink:0;font-size:.72rem}
 .detail-kpi-item{
-  font-size:.78rem;color:#7A3E08;
+  font-size:.82rem;color:#6A3005;
   background:#FDF4E7;border:1px solid #ECCF80;
-  border-radius:.35rem;padding:.35rem .55rem;
-  line-height:1.45;display:flex;align-items:baseline;gap:.4rem;
+  border-radius:.35rem;padding:.38rem .6rem;
+  line-height:1.5;display:flex;align-items:baseline;gap:.4rem;
 }
-.detail-kpi-item::before{content:'⚠';flex-shrink:0;font-size:.72rem}
+.detail-kpi-item::before{content:'⚠';flex-shrink:0;font-size:.75rem}
 
 /* Commercial direction block */
 .detail-direction{
-  font-size:.82rem;color:#2C4260;line-height:1.65;
+  font-size:.85rem;color:#1E3450;line-height:1.7;
   background:#F0F5FA;
   border-left:3.5px solid """ + CAP_BLUE + r""";
   border-radius:0 .4rem .4rem 0;
-  padding:.65rem .9rem;
+  padding:.7rem 1rem;
 }
 
 /* Next action — prominent highlight */
@@ -931,9 +931,9 @@ body{
   background:linear-gradient(135deg,#F0FAF4,#E8F7F0);
   border:1.5px solid #8ED4AC;
   border-radius:.4rem;
-  padding:.65rem .9rem;
-  font-size:.82rem;color:#145E32;
-  line-height:1.6;
+  padding:.7rem 1rem;
+  font-size:.85rem;color:#0D4A28;
+  line-height:1.65;
   font-weight:500;
 }
 
@@ -952,9 +952,9 @@ body{
   box-shadow:0 2px 6px rgba(14,30,56,.25);
 }
 .mgr-info{flex:1;min-width:0}
-.mgr-name{font-size:.85rem;font-weight:600;color:""" + CAP_NAVY + r""";margin-bottom:.1rem}
-.mgr-role{font-size:.71rem;color:#7A96B0}
-.mgr-email{font-size:.68rem;color:#AAC0CC;margin-top:.05rem}
+.mgr-name{font-size:.88rem;font-weight:600;color:""" + CAP_NAVY + r""";margin-bottom:.1rem}
+.mgr-role{font-size:.75rem;color:#3A5A78}
+.mgr-email{font-size:.72rem;color:#5A7A94;margin-top:.05rem}
 
 /* Activate CTA */
 .btn-activate{
@@ -979,11 +979,12 @@ body{
 /* Run history */
 .run-history-item{
   display:flex;align-items:center;gap:.55rem;
-  font-size:.72rem;color:#607A96;
-  padding:.3rem 0;border-bottom:1px solid #EEF2F8;
+  font-size:.78rem;color:#2C4260;
+  padding:.38rem 0;border-bottom:1px solid #EEF2F8;
+  min-width:0;
 }
 .run-history-item:last-child{border-bottom:none}
-.run-ts{color:#AABFCC;font-size:.67rem;font-variant-numeric:tabular-nums}
+.run-ts{color:#5A7A94;font-size:.72rem;font-variant-numeric:tabular-nums;flex-shrink:0}
 
 /* ─── Modal ──────────────────────────────────────────────────────── */
 .modal-overlay{
@@ -1020,11 +1021,11 @@ body{
 .modal-close:hover{color:""" + CAP_NAVY + r"""}
 .modal-section{margin-bottom:1.3rem}
 .modal-section-title{
-  font-size:.67rem;font-weight:700;text-transform:uppercase;
-  letter-spacing:.09em;color:#AABFCC;margin-bottom:.5rem;
+  font-size:.72rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:#4A6A84;margin-bottom:.55rem;
 }
 .modal-body{
-  font-size:.84rem;color:#334E68;line-height:1.65;
+  font-size:.86rem;color:#1E3450;line-height:1.7;
   background:#F4F7FB;border-radius:.4rem;
   padding:.75rem .95rem;
 }
@@ -1078,125 +1079,82 @@ code{
 }
 .footer{margin-top:3rem;text-align:center;font-size:.74rem;color:#AAC0CC}
 
-/* ─── Economic Impact panel ──────────────────────────────────────── */
-.roi-panel{
-  background:#fff;
-  border:1px solid rgba(0,0,0,.07);
-  border-radius:.6rem;
-  box-shadow:0 1px 4px rgba(14,30,56,.06),0 4px 12px rgba(14,30,56,.04);
-  margin-bottom:1.5rem;
-  overflow:hidden;
+/* ─── ROI summary bar ────────────────────────────────────── */
+.roi-panel{border-bottom:1px solid #DDE5EF}
+.roi-bar{
+  display:flex;align-items:center;gap:0;
+  padding:.45rem 1.2rem;flex-wrap:wrap;
 }
-.roi-panel-header{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:.9rem 1.4rem .75rem;
-  border-bottom:1.5px solid """ + CAP_BORDER + r""";
-  cursor:pointer;
-  user-select:none;
+.roi-bar-label{
+  font-size:.63rem;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:#5A7A96;
+  white-space:nowrap;margin-right:.85rem;flex-shrink:0;
 }
-.roi-panel-header:hover{background:#FAFCFE}
-.roi-header-left{display:flex;align-items:center;gap:.75rem}
-.roi-panel-icon{
-  width:32px;height:32px;border-radius:.4rem;
-  background:linear-gradient(135deg,#0E2A50,#1A4A80);
-  display:flex;align-items:center;justify-content:center;
-  font-size:.95rem;flex-shrink:0;
+.roi-bar-metrics{display:flex;align-items:center;gap:0;flex:1;min-width:0}
+.roi-bar-metric{
+  display:flex;align-items:baseline;gap:.28rem;
+  padding:0 .8rem;border-right:1px solid #DDE5EF;
 }
-.roi-panel-title{
-  font-size:.72rem;font-weight:700;text-transform:uppercase;
-  letter-spacing:.08em;color:#3A5470;
+.roi-bar-metric:first-child{padding-left:0}
+.roi-bar-metric:last-child{border-right:none;margin-right:.85rem}
+.roi-bar-val{font-size:1rem;font-weight:700;letter-spacing:-.02em;color:#0E1E38}
+.roi-bar-lbl{font-size:.63rem;color:#7A96B0;white-space:nowrap}
+.roi-bar-scenarios{display:flex;align-items:center;gap:.28rem;margin-right:.75rem}
+.roi-bar-scen{
+  padding:.18rem .55rem;border-radius:9999px;
+  font-size:.63rem;font-weight:600;cursor:pointer;
+  border:1px solid #C8D4E0;background:transparent;color:#607A96;
+  transition:all .13s;letter-spacing:.01em;
 }
-.roi-panel-subtitle{font-size:.80rem;color:#4A6A84;margin-top:.1rem}
-.roi-toggle-hint{font-size:.75rem;color:#4A6A84;font-weight:500}
-.roi-body{padding:1.1rem 1.4rem 1.25rem;display:none}
-.roi-body.open{display:block}
-.scenario-row{
-  display:flex;gap:.5rem;margin-bottom:1.1rem;
-  flex-wrap:wrap;align-items:center;
+.roi-bar-scen.active{
+  background:#0E1E38;border-color:#0E1E38;
+  color:#fff;box-shadow:0 1px 4px rgba(14,30,56,.2);
 }
-.scenario-btn{
-  padding:.32rem .9rem;
-  border-radius:9999px;
-  font-size:.72rem;font-weight:600;
-  cursor:pointer;
-  border:1.5px solid """ + CAP_BORDER + r""";
-  background:#F4F7FB;
-  color:#607A96;
-  transition:all .15s;
-  letter-spacing:.01em;
+.roi-bar-scen:hover:not(.active){background:#F0F4FA}
+.roi-expand-btn{
+  font-size:.63rem;font-weight:600;color:#5A7A96;
+  background:none;border:1px solid #DDE5EF;
+  border-radius:.3rem;padding:.2rem .55rem;
+  cursor:pointer;white-space:nowrap;flex-shrink:0;
+  transition:all .12s;
 }
-.scenario-btn.active{
-  background:""" + CAP_NAVY + r""";
-  border-color:""" + CAP_NAVY + r""";
-  color:#fff;
-  box-shadow:0 2px 8px rgba(14,30,56,.25);
+.roi-expand-btn:hover{background:#F0F4FA;color:#1E3450}
+.roi-body{
+  padding:.7rem 1.2rem .8rem;
+  border-top:1px solid #DDE5EF;
+  background:#FAFCFE;
 }
-.scenario-btn:hover:not(.active){background:#E8EDF5;border-color:#C8D4E0}
+.roi-body.collapsed{display:none}
 .roi-assumptions{
-  display:grid;
-  grid-template-columns:repeat(5,1fr);
-  gap:.75rem;
-  margin-bottom:1.25rem;
-  padding:.85rem 1rem;
-  background:#F4F7FB;
-  border:1px solid """ + CAP_BORDER + r""";
-  border-radius:.45rem;
+  display:grid;grid-template-columns:repeat(5,1fr);
+  gap:.55rem;margin-bottom:.75rem;
 }
-.roi-assumption{display:flex;flex-direction:column;gap:.25rem}
+.roi-assumption{display:flex;flex-direction:column;gap:.18rem}
 .roi-assumption label{
-  font-size:.66rem;font-weight:700;text-transform:uppercase;
-  letter-spacing:.07em;color:#4A6A84;
+  font-size:.63rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:#2C4A64;
 }
-.roi-assumption-val{display:flex;align-items:center;gap:.5rem}
-.roi-assumption input[type=range]{
-  flex:1;height:4px;
-  accent-color:""" + CAP_BLUE + r""";
-  cursor:pointer;
-}
+.roi-assumption-val{display:flex;align-items:center;gap:.4rem}
+.roi-assumption input[type=range]{flex:1;height:4px;accent-color:#0070AD;cursor:pointer;min-width:0}
 .roi-assumption span{
-  font-size:.78rem;font-weight:600;
-  color:""" + CAP_NAVY + r""";
-  min-width:3.2rem;text-align:right;
-  font-variant-numeric:tabular-nums;
+  font-size:.72rem;font-weight:700;color:#0E1E38;
+  min-width:3rem;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0;
 }
-.roi-results{
-  display:grid;
-  grid-template-columns:repeat(6,1fr);
-  gap:.75rem;
-  margin-bottom:.9rem;
-}
+.roi-results{display:grid;grid-template-columns:repeat(6,1fr);gap:.55rem}
 .roi-metric{
-  background:#F8FAFE;
-  border:1px solid """ + CAP_BORDER + r""";
-  border-radius:.45rem;
-  padding:.7rem .9rem .65rem;
-  position:relative;overflow:hidden;
-}
-.roi-metric::after{
-  content:'';position:absolute;
-  bottom:0;left:0;right:0;height:2.5px;
-  background:var(--roi-accent,""" + CAP_BLUE + r""");
-  border-radius:0 0 .45rem .45rem;
-  opacity:.7;
+  padding:.45rem .65rem .4rem;
+  border-bottom:2px solid var(--roi-accent,#0070AD);
 }
 .roi-metric-label{
-  font-size:.63rem;font-weight:600;letter-spacing:.07em;
-  text-transform:uppercase;color:#4A6A84;margin-bottom:.4rem;
+  font-size:.61rem;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:#2C4A64;margin-bottom:.25rem;
 }
 .roi-metric-value{
-  font-size:1.25rem;font-weight:700;line-height:1;
-  color:var(--roi-accent,""" + CAP_NAVY + r""");
-  letter-spacing:-.02em;
+  font-size:1rem;font-weight:700;line-height:1;
+  color:var(--roi-accent,#0E1E38);letter-spacing:-.02em;
 }
-.roi-metric-sub{font-size:.69rem;color:#4A6A84;margin-top:.28rem;line-height:1.4}
-.roi-disclaimer{
-  font-size:.72rem;color:#4A6A84;
-  line-height:1.6;
-  padding:.7rem .95rem;
-  background:#F0F4F9;
-  border-radius:.35rem;
-  border:1px solid """ + CAP_BORDER + r""";
-}
+.roi-metric-sub{font-size:.65rem;color:#3A5470;margin-top:.18rem;line-height:1.3}
+.roi-disclaimer{display:none}
 @media(max-width:1199px){
   .roi-assumptions{grid-template-columns:repeat(3,1fr)}
   .roi-results{grid-template-columns:repeat(3,1fr)}
@@ -1362,23 +1320,23 @@ code{
 }
 .hitl-header-text{flex:1}
 .hitl-title{font-size:.95rem;font-weight:700;color:""" + CAP_NAVY + r""";margin-bottom:.15rem}
-.hitl-subtitle{font-size:.77rem;color:#7A96B0;line-height:1.45}
+.hitl-subtitle{font-size:.80rem;color:#3A5A78;line-height:1.5}
 .hitl-body{padding:1rem 1.4rem}
 .hitl-engagement{
   background:#F4F7FB;border:1px solid """ + CAP_BORDER + r""";
   border-radius:.4rem;padding:.65rem .85rem;margin-bottom:.9rem;
 }
-.hitl-eng-id{font-size:.65rem;color:#AAC0CC;letter-spacing:.04em;text-transform:uppercase;margin-bottom:.18rem}
+.hitl-eng-id{font-size:.68rem;color:#5A7A94;letter-spacing:.04em;text-transform:uppercase;margin-bottom:.18rem}
 .hitl-eng-name{font-size:.9rem;font-weight:600;color:""" + CAP_NAVY + r"""}
-.hitl-desc{font-size:.82rem;color:#334E68;line-height:1.6;margin-bottom:1rem}
+.hitl-desc{font-size:.85rem;color:#1E3450;line-height:1.65;margin-bottom:1rem}
 .hitl-what{
   background:#EEF5FF;border:1.5px solid #C2D9F0;
   border-radius:.4rem;padding:.55rem .8rem;
   margin-bottom:1.1rem;
 }
-.hitl-what-label{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#8BAABF;margin-bottom:.3rem}
+.hitl-what-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#3A5A78;margin-bottom:.3rem}
 .hitl-what-steps{display:flex;flex-direction:column;gap:.22rem}
-.hitl-what-step{font-size:.78rem;color:#2C4260;display:flex;align-items:baseline;gap:.4rem}
+.hitl-what-step{font-size:.82rem;color:#1E3450;display:flex;align-items:baseline;gap:.4rem}
 .hitl-what-step::before{content:'→';color:""" + CAP_BLUE + r""";font-size:.7rem;flex-shrink:0}
 .hitl-actions{
   display:flex;gap:.75rem;
@@ -1414,26 +1372,19 @@ code{
 /* Wide — 1400 px + : give board more room */
 @media(min-width:1400px){
   .pipeline{grid-template-columns:repeat(7,minmax(170px,1fr))}
-  .workspace{grid-template-columns:1fr 430px}
 }
 
-/* Medium — below 1200px: tighten side panel */
+/* Medium — below 1200px */
 @media(max-width:1199px){
-  .workspace{grid-template-columns:1fr 360px;gap:1rem}
+  .combined-panel{margin-top:1rem}
+  .board-section{margin-top:1rem}
   .kpi-row{grid-template-columns:repeat(2,1fr)}
 }
 
-/* Tablet — below 900px: stack workspace */
+/* Tablet — below 900px */
 @media(max-width:899px){
   .page{padding:1.25rem 1.25rem 4rem}
-  .workspace{
-    grid-template-columns:1fr;
-    display:flex;flex-direction:column;gap:1.25rem;
-  }
-  .detail-panel{
-    position:static;max-height:none;
-    min-height:320px;
-  }
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
   .pipeline{grid-template-columns:repeat(7,minmax(150px,1fr));min-width:1050px}
 }
 
@@ -1467,46 +1418,27 @@ code{
   </div>
 </div>
 
-<!-- ─── Four Core Concepts strip ──────────────────────────────── -->
-<div class="concept-strip">
-  <div class="concept-strip-inner">
-
-    <div class="concept-card">
-      <div class="concept-icon" style="background:rgba(0,112,173,.18);color:#5AC0F5">&#9741;</div>
-      <div class="concept-body">
-        <div class="concept-tag" style="color:#5AC0F5">Framework</div>
-        <div class="concept-name">Agent Value Attribution</div>
-        <div class="concept-desc">The discipline that links agent activity to a measurable business outcome &mdash; not just &ldquo;it ran&rdquo;, but &ldquo;it created X hours of analyst value.&rdquo;</div>
-      </div>
-    </div>
-
-    <div class="concept-card">
-      <div class="concept-icon" style="background:rgba(30,145,96,.18);color:#3ED49A">&#128218;</div>
-      <div class="concept-body">
-        <div class="concept-tag" style="color:#3ED49A">System of Record</div>
-        <div class="concept-name">Agent Value Ledger</div>
-        <div class="concept-desc">The governed register where every agent run writes a timestamped value entry. <code style="color:#3ED49A;font-size:.65rem">runs.db</code> is the ledger for this demo.</div>
-      </div>
-    </div>
-
-    <div class="concept-card">
-      <div class="concept-icon" style="background:rgba(107,66,168,.18);color:#B08AE8">&#128200;</div>
-      <div class="concept-body">
-        <div class="concept-tag" style="color:#B08AE8">Dashboard Metric</div>
-        <div class="concept-name">Indicative ROI</div>
-        <div class="concept-desc">The executive-facing financial signal: ledger value translated into return on investment, visible at portfolio level in the Economic Impact Model below.</div>
-      </div>
-    </div>
-
-    <div class="concept-card">
-      <div class="concept-icon" style="background:rgba(232,151,10,.15);color:#F5C842">&#9881;</div>
-      <div class="concept-body">
-        <div class="concept-tag" style="color:#F5C842">Calculation Logic</div>
-        <div class="concept-name">Economic Impact Model</div>
-        <div class="concept-desc">The transparent, assumption-driven model that converts attributed hours into gross value, net value, payback period, and ROI &mdash; with adjustable scenarios.</div>
-      </div>
-    </div>
-
+<!-- ─── Concept bar ──────────────────────────────────────────────── -->
+<div class="concept-bar">
+  <div class="concept-pill">
+    <span class="concept-pill-role">Framework</span>
+    <span class="concept-pill-sep">/</span>
+    <span class="concept-pill-name">Agent Value Attribution</span>
+  </div>
+  <div class="concept-pill">
+    <span class="concept-pill-role">Ledger</span>
+    <span class="concept-pill-sep">/</span>
+    <span class="concept-pill-name">Agent Value Ledger</span>
+  </div>
+  <div class="concept-pill">
+    <span class="concept-pill-role">Metric</span>
+    <span class="concept-pill-sep">/</span>
+    <span class="concept-pill-name">Indicative ROI</span>
+  </div>
+  <div class="concept-pill">
+    <span class="concept-pill-role">Outcome Based</span>
+    <span class="concept-pill-sep">/</span>
+    <span class="concept-pill-name">Economic Impact Model</span>
   </div>
 </div>
 
@@ -1535,25 +1467,45 @@ code{
   </div>
 </div>
 
-<!-- ─── Economic Impact Model ──────────────────────────────────── -->
-<div class="roi-panel">
-  <div class="roi-panel-header" onclick="toggleRoi()" id="roi-panel-header">
-    <div class="roi-header-left">
-      <div class="roi-panel-icon">&#128200;</div>
-      <div>
-        <div class="roi-panel-title">Economic Impact Model &mdash; Indicative ROI</div>
-        <div class="roi-panel-subtitle">Illustrative &middot; assumption-driven &middot; scenario-based &mdash; not a contractual estimate</div>
-      </div>
-    </div>
-    <span class="roi-toggle-hint" id="roi-toggle-hint">&#9660;&ensp;Expand</span>
+<div class="combined-panel">
+
+<div class="left-col">
+
+<div class="kpi-row">
+  <div class="kpi-tile" style="--kpi-accent:%%BLUE%%">
+    <div class="kpi-label">Engagements in scope</div>
+    <div class="kpi-value">%%TOTAL_OPPS%%</div>
+    <div class="kpi-sub">Unique SoWs assessed</div>
   </div>
-  <div class="roi-body" id="roi-body">
-    <div class="scenario-row">
-      <span style="font-size:.70rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#4A6A84;align-self:center;margin-right:.25rem">Scenario</span>
-      <button class="scenario-btn" id="scen-conservative" onclick="applyScenario('conservative')">Conservative</button>
-      <button class="scenario-btn active" id="scen-expected" onclick="applyScenario('expected')">Expected</button>
-      <button class="scenario-btn" id="scen-upside" onclick="applyScenario('upside')">Upside</button>
+  <div class="kpi-tile" style="--kpi-accent:%%COVERAGE_COLOR%%">
+    <div class="kpi-label">Validated coverage</div>
+    <div class="kpi-value" style="color:%%COVERAGE_COLOR%%">%%COVERAGE_PCT%%%</div>
+    <div class="kpi-sub">%%VALIDATED_CNT%% of %%TOTAL_OPPS%% with confirmed verdict</div>
+  </div>
+  <div class="kpi-tile" style="--kpi-accent:#1E9160">
+    <div class="kpi-label">Attributed Value</div>
+    <div class="kpi-value" style="color:#1E9160">%%TOTAL_HOURS%%&thinsp;h</div>
+    <div class="kpi-sub">Across %%TOTAL_RUNS%% agent runs</div>
+  </div>
+  <div class="kpi-tile" style="--kpi-accent:#6B42A8">
+    <div class="kpi-label">Value Realization</div>
+    <div class="kpi-value" style="color:#6B42A8">%%OUTCOME_READY%%</div>
+    <div class="kpi-sub">Cleared for outcome-based pricing</div>
+  </div>
+</div>
+
+<div class="roi-panel">
+  <div class="roi-bar">
+    <span class="roi-bar-label">Indicative ROI</span>
+    <div class="roi-bar-metrics" id="roi-bar-metrics"></div>
+    <div class="roi-bar-scenarios">
+      <button class="roi-bar-scen" id="scen-conservative" onclick="applyScenario('conservative')">Conservative</button>
+      <button class="roi-bar-scen active" id="scen-expected" onclick="applyScenario('expected')">Expected</button>
+      <button class="roi-bar-scen" id="scen-upside" onclick="applyScenario('upside')">Upside</button>
     </div>
+    <button class="roi-expand-btn" onclick="toggleRoi()" id="roi-expand-btn">&#9660;&ensp;Assumptions</button>
+  </div>
+  <div class="roi-body collapsed" id="roi-body">
     <div class="roi-assumptions">
       <div class="roi-assumption">
         <label>Analyst rate (&#8364;/h)</label>
@@ -1563,85 +1515,73 @@ code{
         </div>
       </div>
       <div class="roi-assumption">
-        <label>One-time build cost (&#8364;k)</label>
+        <label>Build cost (&#8364;k)</label>
         <div class="roi-assumption-val">
           <input type="range" id="ra-build" min="20" max="400" step="10" value="120" oninput="updateRoi()">
           <span id="ra-build-val">&#8364;120k</span>
         </div>
       </div>
       <div class="roi-assumption">
-        <label>Monthly operating cost (&#8364;k)</label>
+        <label>Monthly opex (&#8364;k)</label>
         <div class="roi-assumption-val">
           <input type="range" id="ra-opex" min="1" max="30" step="1" value="6" oninput="updateRoi()">
           <span id="ra-opex-val">&#8364;6k</span>
         </div>
       </div>
       <div class="roi-assumption">
-        <label>Utilisation / adoption (%)</label>
+        <label>Utilisation (%)</label>
         <div class="roi-assumption-val">
           <input type="range" id="ra-util" min="10" max="100" step="5" value="70" oninput="updateRoi()">
           <span id="ra-util-val">70%</span>
         </div>
       </div>
       <div class="roi-assumption">
-        <label>Annual SoW throughput</label>
+        <label>Annual throughput</label>
         <div class="roi-assumption-val">
           <input type="range" id="ra-hours" min="100" max="2000" step="50" value="600" oninput="updateRoi()">
           <span id="ra-hours-val">600 h</span>
         </div>
       </div>
     </div>
-    <div class="roi-results" id="roi-results">
-      <!-- populated by JS -->
-    </div>
-    <div class="roi-disclaimer">
-      <strong>Important:</strong> All figures are illustrative estimates based on the assumptions above.
-      Actual value will vary by engagement mix, analyst utilisation, and adoption rate.
-      This model is intended to support internal business case conversations &mdash; it does not constitute a commercial commitment or guarantee.
-      Attribution methodology: total <code>hours_saved</code> recorded in the Agent Value Ledger &times; analyst rate &times; utilisation.
-    </div>
+    <div class="roi-results" id="roi-results"></div>
   </div>
 </div>
 
 <div class="intake-panel">
-  <div class="section-header" style="margin-bottom:.7rem">
-    <span class="section-title">Submit a SoW for AI Review</span>
+  <span class="intake-label">Submit a SoW</span>
+  <div class="intake-field">
+    <input type="text" id="opp-id" placeholder="Opportunity ID"/>
   </div>
-  <div class="intake-form">
-    <div class="intake-field">
-      <label>Opportunity ID</label>
-      <input type="text" id="opp-id" placeholder="e.g. OPP-2026-0400"/>
-    </div>
-    <div class="intake-field">
-      <label>Engagement Name</label>
-      <input type="text" id="eng-name" placeholder="Client &middot; Topic"/>
-    </div>
-    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-      <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt" onchange="onFileChosen(this)"/>
-      <span id="drop-label">&#128196;&ensp;Drop PDF / DOCX / TXT &mdash; or click to browse</span>
-    </div>
-    <button class="btn-scan" id="upload-btn" onclick="submitUpload()" disabled>Run AI Review &rarr;</button>
+  <div class="intake-field">
+    <input type="text" id="eng-name" placeholder="Engagement name"/>
   </div>
+  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+    <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt" onchange="onFileChosen(this)"/>
+    <span id="drop-label">&#128196;&ensp;Drop PDF / DOCX / TXT &mdash; or click to browse</span>
+  </div>
+  <button class="btn-scan" id="upload-btn" onclick="submitUpload()" disabled>Run AI Review &rarr;</button>
   <div class="intake-status" id="upload-status"></div>
 </div>
 
-<div class="workspace">
-  <div class="board-col">
-    <div class="section-header">
-      <span class="section-title">Agent Value Attribution Pipeline</span>
-      <span style="font-size:.72rem;color:#AAC0CC">Click any card to open the detail view &rarr;</span>
-    </div>
-    <div class="board-scroll">
-      <div class="pipeline">%%BOARD_HTML%%</div>
-    </div>
-  </div>
+</div><!-- /left-col -->
 
-  <div class="detail-panel" id="detail-panel">
-    <div class="detail-empty" id="detail-empty">
-      <div class="detail-empty-icon">&#128269;</div>
-      <div class="detail-empty-text">Select an engagement card<br>to view its assessment and Attributed Value</div>
-    </div>
-    <div id="detail-content" style="display:none;flex:1;display:flex;flex-direction:column"></div>
+</div><!-- /combined-panel -->
+
+<!-- ─── Detail popup overlay ───────────────────────────────── -->
+<div class="detail-overlay" id="detail-overlay" onclick="closeDetail(event)">
+  <div class="detail-popup" id="detail-popup" onclick="event.stopPropagation()">
+    <div class="detail-popup-close"><button onclick="closeDetail()">&times;</button></div>
+    <div id="detail-content" style="display:flex;flex:1;flex-direction:column"></div>
+  </div>
+</div>
+
+<div class="board-section">
+  <div class="section-header">
+    <span class="section-title">Agent Value Attribution Pipeline</span>
+    <span style="font-size:.72rem;color:#AAC0CC">Click any card to open the detail view &rarr;</span>
+  </div>
+  <div class="board-scroll">
+    <div class="pipeline">%%BOARD_HTML%%</div>
   </div>
 </div>
 
@@ -2122,7 +2062,6 @@ function openDetail(opp) {
   const d = DETAILS[opp]; if (!d) return;
   document.querySelectorAll('.eng-card').forEach(c=>c.classList.remove('selected'));
   const card = document.getElementById('card-'+opp); if(card) card.classList.add('selected');
-  document.getElementById('detail-empty').style.display = 'none';
   const dc = document.getElementById('detail-content');
   dc.style.display = 'flex';
 
@@ -2279,9 +2218,8 @@ function applyScenario(name) {
   document.getElementById('ra-opex').value  = s.opex;
   document.getElementById('ra-util').value  = s.util;
   document.getElementById('ra-hours').value = s.hours;
-  ['conservative','expected','upside'].forEach(k => {
-    document.getElementById('scen-'+k).classList.toggle('active', k===name);
-  });
+  document.querySelectorAll('.roi-bar-scen').forEach(b => b.classList.remove('active'));
+  document.getElementById('scen-'+name).classList.add('active');
   updateRoi();
 }
 
@@ -2341,14 +2279,33 @@ function updateRoi() {
       <div class="roi-metric-value" style="color:${m.accent}">${m.value}</div>
       <div class="roi-metric-sub">${m.sub}</div>
     </div>`).join('');
+
+  // Populate the always-visible summary bar
+  const barEl = document.getElementById('roi-bar-metrics');
+  if (barEl) barEl.innerHTML =
+    `<div class="roi-bar-metric"><span class="roi-bar-val">${roiFmt(grossHourValue)}</span><span class="roi-bar-lbl">Gross value/yr</span></div>` +
+    `<div class="roi-bar-metric"><span class="roi-bar-val" style="color:${netColor}">${roiFmt(netValue12m)}</span><span class="roi-bar-lbl">Net (12 mo)</span></div>` +
+    `<div class="roi-bar-metric" style="border-right:none"><span class="roi-bar-val" style="color:${roiColor}">${roi.toFixed(0)}%</span><span class="roi-bar-lbl">ROI</span></div>`;
+}
+
+  document.getElementById('detail-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDetail(e) {
+  if (e && e.target !== document.getElementById('detail-overlay')) return;
+  document.getElementById('detail-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+  document.querySelectorAll('.eng-card').forEach(c=>c.classList.remove('selected'));
+  activeOpp = null;
 }
 
 function toggleRoi() {
   const body = document.getElementById('roi-body');
-  const hint = document.getElementById('roi-toggle-hint');
-  const open = body.classList.toggle('open');
-  hint.innerHTML = open ? '&#9650;&ensp;Collapse' : '&#9660;&ensp;Expand';
-  if (open) updateRoi();
+  const btn  = document.getElementById('roi-expand-btn');
+  const collapsed = body.classList.toggle('collapsed');
+  btn.innerHTML = collapsed ? '&#9660;&ensp;Assumptions' : '&#9650;&ensp;Assumptions';
+  if (!collapsed) updateRoi();
 }
 
 // ─── Toast ───────────────────────────────────────────────────────────────────
@@ -2356,6 +2313,9 @@ function showToast(msg) {
   const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),3500);
 }
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+applyScenario('expected');
 </script>
 </body>
 </html>
