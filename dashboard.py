@@ -549,6 +549,7 @@ body{
   display:grid;
   grid-template-columns:repeat(4,1fr);
   border-bottom:1px solid #DDE5EF;
+  background:#fff;
 }
 .kpi-tile{
   padding:.8rem 1.2rem .75rem;
@@ -582,12 +583,16 @@ body{
 
 /* ─── Intake panel ───────────────────────────────────────────────── */
 .intake-panel{
-  padding:.85rem 1.2rem 1rem;
-  flex:1;
+  padding:.7rem 1.2rem .8rem;
   border-top:1px solid #DDE5EF;
+  display:flex;
+  align-items:center;
+  gap:.75rem;
+  flex-wrap:wrap;
 }
-.intake-form{display:flex;gap:.85rem;flex-wrap:wrap;align-items:flex-end}
-.intake-field{display:flex;flex-direction:column;gap:.3rem;flex:1;min-width:150px}
+.intake-label{font-size:.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A7A96;white-space:nowrap;flex-shrink:0}
+.intake-form{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;flex:1}
+.intake-field{flex:0 0 auto;min-width:0}
 .intake-field label{
   font-size:.72rem;font-weight:700;text-transform:uppercase;
   letter-spacing:.07em;color:#4A6A84;
@@ -1418,54 +1423,14 @@ code{
   </div>
 </div>
 
-<!-- ─── Concept bar ──────────────────────────────────────────────── -->
-<div class="concept-bar">
-  <div class="concept-pill">
-    <span class="concept-pill-role">Framework</span>
-    <span class="concept-pill-sep">/</span>
-    <span class="concept-pill-name">Agent Value Attribution</span>
-  </div>
-  <div class="concept-pill">
-    <span class="concept-pill-role">Ledger</span>
-    <span class="concept-pill-sep">/</span>
-    <span class="concept-pill-name">Agent Value Ledger</span>
-  </div>
-  <div class="concept-pill">
-    <span class="concept-pill-role">Metric</span>
-    <span class="concept-pill-sep">/</span>
-    <span class="concept-pill-name">Indicative ROI</span>
-  </div>
-  <div class="concept-pill">
-    <span class="concept-pill-role">Outcome Based</span>
-    <span class="concept-pill-sep">/</span>
-    <span class="concept-pill-name">Economic Impact Model</span>
-  </div>
+<div class="topbar-model">
+  <div class="tm-pill"><span class="tm-role">Framework</span><span class="tm-sep">/</span><span class="tm-name">Agent Value Attribution</span></div>
+  <div class="tm-pill"><span class="tm-role">Ledger</span><span class="tm-sep">/</span><span class="tm-name">Agent Value Ledger</span></div>
+  <div class="tm-pill"><span class="tm-role">Metric</span><span class="tm-sep">/</span><span class="tm-name">Indicative ROI</span></div>
+  <div class="tm-pill"><span class="tm-role">Model</span><span class="tm-sep">/</span><span class="tm-name">Economic Impact</span></div>
 </div>
 
 <div class="page">
-
-<div class="kpi-row">
-  <div class="kpi-tile" style="--kpi-accent:%%BLUE%%">
-    <div class="kpi-label">Engagements in scope</div>
-    <div class="kpi-value">%%TOTAL_OPPS%%</div>
-    <div class="kpi-sub">Unique SoWs assessed for outcome-based pricing</div>
-  </div>
-  <div class="kpi-tile" style="--kpi-accent:%%COVERAGE_COLOR%%">
-    <div class="kpi-label">Validated coverage</div>
-    <div class="kpi-value" style="color:%%COVERAGE_COLOR%%">%%COVERAGE_PCT%%%</div>
-    <div class="kpi-sub">%%VALIDATED_CNT%% of %%TOTAL_OPPS%% engagements with confirmed verdict</div>
-  </div>
-  <div class="kpi-tile" style="--kpi-accent:#1E9160">
-    <div class="kpi-label">Attributed Value</div>
-    <div class="kpi-value" style="color:#1E9160">%%TOTAL_HOURS%%&thinsp;h</div>
-    <div class="kpi-sub">Analyst hours saved across %%TOTAL_RUNS%% agent runs</div>
-  </div>
-  <div class="kpi-tile" style="--kpi-accent:#6B42A8">
-    <div class="kpi-label">Value Realization candidates</div>
-    <div class="kpi-value" style="color:#6B42A8">%%OUTCOME_READY%%</div>
-    <div class="kpi-sub">Engagements cleared for outcome-based pricing</div>
-  </div>
-</div>
 
 <div class="combined-panel">
 
@@ -1550,14 +1515,14 @@ code{
 <div class="intake-panel">
   <span class="intake-label">Submit a SoW</span>
   <div class="intake-field">
-    <input type="text" id="opp-id" placeholder="Opportunity ID"/>
+    <input type="text" id="opp-id" placeholder="Opportunity ID" style="width:140px"/>
   </div>
   <div class="intake-field">
-    <input type="text" id="eng-name" placeholder="Engagement name"/>
+    <input type="text" id="eng-name" placeholder="Engagement name" style="width:180px"/>
   </div>
   <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
     <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt" onchange="onFileChosen(this)"/>
-    <span id="drop-label">&#128196;&ensp;Drop PDF / DOCX / TXT &mdash; or click to browse</span>
+    <span id="drop-label">&#128196;&ensp;Drop or browse PDF / DOCX / TXT</span>
   </div>
   <button class="btn-scan" id="upload-btn" onclick="submitUpload()" disabled>Run AI Review &rarr;</button>
   <div class="intake-status" id="upload-status"></div>
