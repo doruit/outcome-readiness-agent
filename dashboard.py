@@ -779,6 +779,7 @@ body{
   overflow:hidden;text-overflow:ellipsis;
   margin-bottom:.15rem;
   font-variant-numeric:tabular-nums;
+  padding-right:3rem;
 }
 .card-name{
   font-size:.88rem;font-weight:600;
@@ -786,7 +787,7 @@ body{
   display:-webkit-box;-webkit-line-clamp:2;
   -webkit-box-orient:vertical;overflow:hidden;
   word-break:break-word;
-  margin-bottom:.45rem;
+  margin-bottom:.2rem;
 }
 .card-verdict-row{
   display:flex;align-items:center;
@@ -827,8 +828,8 @@ body{
 .card-mgr{
   display:flex;align-items:center;gap:.35rem;
   font-size:.72rem;color:#4A6A84;
-  margin-bottom:.35rem;
-  min-width:0;
+  min-width:0;flex:1;
+  overflow:hidden;white-space:nowrap;
 }
 .mgr-avatar{
   width:20px;height:20px;border-radius:50%;
@@ -2467,7 +2468,7 @@ function showToast(msg) {
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
-applyScenario('expected');
+document.addEventListener('DOMContentLoaded', () => applyScenario('expected'));
 </script>
 </body>
 </html>
