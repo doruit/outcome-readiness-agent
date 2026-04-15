@@ -38,43 +38,90 @@ Three AI agents replace this manual review, at a fraction of the time and cost.
 
 ---
 
-## The framework: Agent Value Attribution
+## The four core concepts
 
-This demo introduces **Agent Value Attribution** as a formal framework for measuring and proving the value delivered by AI agents. Four concepts make up the framework:
-
-| Concept | Definition |
-|---|---|
-| **Agent Value Attribution** | The discipline of linking AI agent activity to a measurable business outcome. Not just "the agent ran" — but "the agent created X hours of analyst value, which translates to £Y at an assumed rate." |
-| **Agent Value Ledger** | The operational system of record for all value entries. Every agent run that produces a verdict writes a timestamped entry to the ledger — `agent_name`, `hours_saved`, `opportunity_id`, `run_id`. In this project, `runs.db` is the ledger. |
-| **Attributed Value** | The per-run output of the attribution calculation. For each SoW reviewed, the agent records `hours_saved` (1.0–8.0 h). This is the atomic unit of value in the ledger. |
-| **Value Realization** | The portfolio-level accumulation of Attributed Value over time — total analyst hours reclaimed, coverage rate, and engagement count cleared for outcome-based pricing. This is what leadership cares about. |
-
-These four concepts form a chain:
-
-```
-Agent run → Attributed Value entry → Agent Value Ledger → Value Realization → Indicative ROI
-```
-
-The dashboard makes this chain visible at every level: per-run, per-engagement, and across the full portfolio.
+This demo is built on four named, first-class concepts. They are not background terminology — they are the conceptual skeleton of the product, visible throughout the UI and enforced at every layer of the architecture.
 
 ---
 
-## The Economic Impact Model
+### 🔵 Agent Value Attribution — *Framework*
 
-The dashboard includes a lightweight, transparent **Economic Impact Model** — an Indicative ROI layer that translates Attributed Value into financial terms.
+> The discipline of linking AI agent activity to a measurable business outcome.
 
-Three scenario presets (Conservative / Expected / Upside) let you adjust four key assumptions:
+Not just "the agent ran" — but "the agent created X hours of analyst value, which translates to €Y at an assumed rate." Agent Value Attribution is the governing framework: it defines *what counts as value*, *how it is measured*, and *who is accountable for it*.
 
-| Assumption | Default (Expected) | What it drives |
+This is the overarching concept. The three concepts below are its operational components.
+
+---
+
+### 🟢 Agent Value Ledger — *System of Record*
+
+> The governed register where every agent run writes a timestamped value entry.
+
+Every time an agent produces a verdict, it writes a structured entry to the ledger:
+
+| Field | Description |
+|---|---|
+| `run_id` | UUID identifying this agent run |
+| `opportunity_id` | The SoW being assessed |
+| `agent_name` | Which agent produced the entry |
+| `hours_saved` | Attributed value for this run (1.0–8.0 h) |
+| `recommendation` | `recommend` / `reconsider` / `rule_out` |
+| `status` | `draft` → `validated` → `approved` |
+
+In this project, `runs.db` is the ledger. In production, this would be a governed datastore with audit trail, access control, and retention policy.
+
+---
+
+### 🟣 Indicative ROI — *Dashboard Metric*
+
+> The executive-facing financial signal: ledger value translated into return on investment.
+
+Indicative ROI is the portfolio-level number that answers the question leadership actually asks: *"Is this agent worth the investment?"* It is derived from the Agent Value Ledger via the Economic Impact Model below, and displayed prominently in the dashboard.
+
+It is explicitly *indicative* — assumption-driven and scenario-based — not a contractual guarantee. Its purpose is to support internal business case conversations with credible, transparent figures.
+
+---
+
+### 🟡 Economic Impact Model — *Calculation Logic*
+
+> The transparent, assumption-driven model that converts attributed hours into financial terms.
+
+The model takes five adjustable inputs and computes six output metrics:
+
+| Input assumption | Default (Expected scenario) | What it drives |
 |---|---|---|
-| Analyst hourly rate | £110/h | Monetary value of hours saved |
-| One-time build cost | £120k | Initial investment |
-| Monthly operating cost | £6k | Ongoing run cost |
+| Analyst hourly rate | €110/h | Monetary value of attributed hours |
+| One-time build cost | €60k | Initial investment to recover |
+| Monthly operating cost | €3k | Ongoing run cost |
 | Utilisation / adoption | 70% | Effective value capture rate |
+| Annual SoW throughput | 800 h/yr | Scale of attributed value at full deployment |
 
-The model computes: gross Attributed Value, annual operating cost, net value over 12 months, Indicative ROI, and estimated payback period.
+Three scenario presets (Conservative / Expected / Upside) let stakeholders explore the range:
 
-**This model is explicitly illustrative** — assumption-driven, scenario-based, and not a contractual estimate. Its purpose is to support internal business case conversations, not to promise a specific return.
+| Scenario | Build cost | Opex/mo | Rate | Util | Throughput | Est. payback |
+|---|---|---|---|---|---|---|
+| Conservative | €80k | €4k | €90/h | 55% | 500 h/yr | ~5 months |
+| Expected | €60k | €3k | €110/h | 70% | 800 h/yr | ~2 months |
+| Upside | €40k | €2k | €135/h | 85% | 1,200 h/yr | ~1 month |
+
+Output metrics: **Gross Attributed Value**, **Build Cost**, **Annual Operating Cost**, **Net Value (12 months)**, **Indicative ROI**, **Estimated Payback Period**.
+
+All assumptions are visible and adjustable in the dashboard — there is no hidden calculation.
+
+---
+
+### How the four concepts connect
+
+```
+Agent run
+  → hours_saved entry written to Agent Value Ledger
+    → Economic Impact Model converts hours to €
+      → Indicative ROI surfaced in dashboard
+        ← all governed by Agent Value Attribution framework
+```
+
+The dashboard makes this chain visible at every level: per-run, per-engagement, and across the full portfolio.
 
 ---
 
@@ -134,7 +181,7 @@ flowchart TD
 ```mermaid
 flowchart TD
     DT(["👤 Deal Team"])
-    UP["📄 Upload SoW\n(dashboard /upload)"]
+    UP["📄 Submit SoW\nrun_demo.py or dashboard upload"]
     DB[("🗄️ Agent Value Ledger\nruns.db")]
 
     subgraph Foundry["☁️ Microsoft Foundry — Agent Service"]
@@ -143,7 +190,7 @@ flowchart TD
         CA["🤖 Clarification Agent\nport 8090"]
     end
 
-    subgraph Pipeline["📋 7-Stage Pipeline"]
+    subgraph Pipeline["📋 7-Stage Pipeline (HITL)"]
         S1["1 · Intake"]
         S2["2 · Scanned"]
         S3a["3 · Under Review"]
@@ -153,23 +200,27 @@ flowchart TD
         S6["6 · Archived"]
     end
 
-    DASH["📊 Dashboard\nlocalhost:5050\n(incl. Economic Impact Model)"]
+    DASH["📊 Dashboard · localhost:5050\nConcept strip · KPI tiles\nAgent Value Ledger · Economic Impact Model"]
     KPI["📈 portfolio_kpi.py"]
     EVAL["🔬 Foundry Continuous Eval\nhours_saved → 0–1 score"]
 
     DT --> UP --> S1
-    S1 -->|"/scan"| SA --> S2
-    S2 -->|"recommend → /review"| RA --> S3a
-    S2 -->|"reconsider → /clarify"| CA --> S3b
-    S2 -->|rule_out| S5
+    S1 -->|"POST /runs"| SA --> S2
+    SA -->|"Attributed Value entry\n(hours_saved, agent_name)"| DB
+
+    S2 -->|"analyst drags → review"| S3a
+    S2 -->|"analyst drags → clarify"| S3b
+    S2 -->|"analyst drags → rejected"| S5
+
+    S3a -->|"POST /runs"| RA
+    RA -->|"Attributed Value entry"| DB
+    S3b -->|"POST /runs"| CA
+    CA -->|"Attributed Value entry"| DB
+
     S3a --> S4
     S3b --> S4
     S4 --> S6
     S5 --> S6
-
-    SA -->|"Attributed Value entry\n(hours_saved, agent_name)"| DB
-    RA -->|"Attributed Value entry\n(hours_saved, agent_name)"| DB
-    CA -->|"Attributed Value entry\n(hours_saved, agent_name)"| DB
 
     DB --> DASH
     DB --> KPI
@@ -182,13 +233,14 @@ flowchart TD
 
 ![](.github/value_attribution_agents.jpeg)
 
-The dashboard (`python dashboard.py` → http://localhost:5050) shows:
+The dashboard (`python dashboard.py` → http://localhost:5050) is structured around value attribution, not the pipeline board. Page layout from top to bottom:
 
-- **7-stage Kanban pipeline** — drag cards between stages with human-in-the-loop confirmation for agent actions
-- **KPI tiles** — Engagements in scope, Validated coverage, Attributed Value (hours), Value Realization candidates
-- **Economic Impact Model** — expandable panel with scenario presets and adjustable assumptions for Indicative ROI
-- **Per-engagement detail panel** — Agent Assessment, Detected Outcomes, KPI Gaps, Commercial Direction, Agent Value Ledger entries
-- **Agent Value Ledger view** — full run history per engagement with Attributed Value per entry
+1. **Four core concepts strip** — Agent Value Attribution · Agent Value Ledger · Indicative ROI · Economic Impact Model, visible as labelled cards immediately below the topbar
+2. **KPI tiles** — Engagements in scope, Validated coverage, Attributed Value (hours), Value Realization candidates
+3. **Economic Impact Model** — expandable panel with three scenario presets (Conservative / Expected / Upside) and five adjustable assumptions; shows Indicative ROI and estimated payback period
+4. **Agent Value Ledger** — the hero section: a full register of all attributed value entries, one row per unique engagement, with verdict, attributed hours, ledger status, and click-through to the detail panel
+5. **Pipeline board** — 7-stage Kanban view (Intake → Archived) with drag-and-drop and human-in-the-loop confirmation for agent-triggered stage transitions
+6. **Per-engagement detail panel** — Agent Assessment, Detected Outcomes, KPI Gaps, Commercial Direction, and the full Agent Value Ledger entry for that engagement
 
 ---
 
@@ -282,7 +334,7 @@ python dashboard.py            # browser dashboard → http://localhost:5050
 | `setup_eval.py` | One-time: `runs.db` (Agent Value Ledger), Foundry evaluator, ContinuousEvaluationRule |
 | `run_demo.py` | Submits SoWs to the Scan Agent, logs Attributed Value entries to `runs.db` |
 | `portfolio_kpi.py` | CLI Value Realization report |
-| `dashboard.py` | Browser dashboard with pipeline, KPIs, and Economic Impact Model (port 5050) |
+| `dashboard.py` | Browser dashboard — concept strip, KPI row, Economic Impact Model, Agent Value Ledger table, pipeline board, detail panel (port 5050) |
 | `sample_sows.json` | 26 synthetic SoWs covering all verdicts |
 | `infra/main.bicep` | Bicep: Foundry account, project, gpt-4o deployment |
 | `docs/` | Architecture, value attribution, contributing, and build-your-own guides |

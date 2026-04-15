@@ -526,6 +526,59 @@ body{
 /* ─── Page ───────────────────────────────────────────────────────── */
 .page{padding:1.75rem 2rem 5rem;max-width:1680px;margin:0 auto}
 
+/* ─── Concept strip ─────────────────────────────────────────────── */
+.concept-strip{
+  background:#0B1C32;
+  border-bottom:1px solid rgba(0,112,173,.3);
+  padding:.9rem 2rem;
+}
+.concept-strip-inner{
+  max-width:1680px;margin:0 auto;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:0;
+}
+.concept-card{
+  display:flex;align-items:flex-start;gap:.75rem;
+  padding:.65rem 1.1rem;
+  border-right:1px solid rgba(255,255,255,.06);
+  transition:background .18s;
+}
+.concept-card:first-child{padding-left:.2rem}
+.concept-card:last-child{border-right:none}
+.concept-card:hover{background:rgba(255,255,255,.03)}
+.concept-icon{
+  width:2rem;height:2rem;flex-shrink:0;
+  border-radius:.35rem;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.95rem;
+  margin-top:.05rem;
+}
+.concept-body{display:flex;flex-direction:column;gap:.18rem}
+.concept-tag{
+  font-size:.58rem;font-weight:800;letter-spacing:.1em;
+  text-transform:uppercase;
+  opacity:.65;
+}
+.concept-name{
+  font-size:.8rem;font-weight:700;
+  color:#E8F2FA;
+  letter-spacing:-.01em;
+  line-height:1.2;
+}
+.concept-desc{
+  font-size:.7rem;font-weight:400;
+  color:#7A9AB8;
+  line-height:1.4;
+}
+@media(max-width:899px){
+  .concept-strip-inner{grid-template-columns:repeat(2,1fr)}
+  .concept-card:nth-child(2){border-right:none}
+  .concept-card:nth-child(3){border-top:1px solid rgba(255,255,255,.06)}
+  .concept-card:nth-child(4){border-top:1px solid rgba(255,255,255,.06);border-right:none}
+}
+@media(max-width:499px){.concept-strip-inner{grid-template-columns:1fr}.concept-card{border-right:none;border-top:1px solid rgba(255,255,255,.06)}.concept-card:first-child{border-top:none}}
+
 /* ─── KPI row ────────────────────────────────────────────────────── */
 .kpi-row{
   display:grid;
@@ -1051,10 +1104,10 @@ code{
 }
 .roi-panel-title{
   font-size:.72rem;font-weight:700;text-transform:uppercase;
-  letter-spacing:.08em;color:#607A96;
+  letter-spacing:.08em;color:#3A5470;
 }
-.roi-panel-subtitle{font-size:.78rem;color:#AABFCC;margin-top:.1rem}
-.roi-toggle-hint{font-size:.72rem;color:#AABFCC}
+.roi-panel-subtitle{font-size:.80rem;color:#4A6A84;margin-top:.1rem}
+.roi-toggle-hint{font-size:.75rem;color:#4A6A84;font-weight:500}
 .roi-body{padding:1.1rem 1.4rem 1.25rem;display:none}
 .roi-body.open{display:block}
 .scenario-row{
@@ -1081,7 +1134,7 @@ code{
 .scenario-btn:hover:not(.active){background:#E8EDF5;border-color:#C8D4E0}
 .roi-assumptions{
   display:grid;
-  grid-template-columns:repeat(4,1fr);
+  grid-template-columns:repeat(5,1fr);
   gap:.75rem;
   margin-bottom:1.25rem;
   padding:.85rem 1rem;
@@ -1091,8 +1144,8 @@ code{
 }
 .roi-assumption{display:flex;flex-direction:column;gap:.25rem}
 .roi-assumption label{
-  font-size:.64rem;font-weight:700;text-transform:uppercase;
-  letter-spacing:.08em;color:#8BAABF;
+  font-size:.66rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.07em;color:#4A6A84;
 }
 .roi-assumption-val{display:flex;align-items:center;gap:.5rem}
 .roi-assumption input[type=range]{
@@ -1127,171 +1180,29 @@ code{
   opacity:.7;
 }
 .roi-metric-label{
-  font-size:.62rem;font-weight:600;letter-spacing:.07em;
-  text-transform:uppercase;color:#8BAABF;margin-bottom:.4rem;
+  font-size:.63rem;font-weight:600;letter-spacing:.07em;
+  text-transform:uppercase;color:#4A6A84;margin-bottom:.4rem;
 }
 .roi-metric-value{
   font-size:1.25rem;font-weight:700;line-height:1;
   color:var(--roi-accent,""" + CAP_NAVY + r""");
   letter-spacing:-.02em;
 }
-.roi-metric-sub{font-size:.67rem;color:#AABFCC;margin-top:.28rem;line-height:1.4}
+.roi-metric-sub{font-size:.69rem;color:#4A6A84;margin-top:.28rem;line-height:1.4}
 .roi-disclaimer{
-  font-size:.69rem;color:#B0BFCC;
-  line-height:1.5;
-  padding:.6rem .85rem;
-  background:#F8FAFE;
+  font-size:.72rem;color:#4A6A84;
+  line-height:1.6;
+  padding:.7rem .95rem;
+  background:#F0F4F9;
   border-radius:.35rem;
   border:1px solid """ + CAP_BORDER + r""";
 }
 @media(max-width:1199px){
-  .roi-assumptions{grid-template-columns:repeat(2,1fr)}
+  .roi-assumptions{grid-template-columns:repeat(3,1fr)}
   .roi-results{grid-template-columns:repeat(3,1fr)}
 }
 @media(max-width:599px){
-  .roi-assumptions{grid-template-columns:1fr 1fr}
-  .roi-results{grid-template-columns:repeat(2,1fr)}
-}
-
-/* ─── Economic Impact panel ──────────────────────────────────────── */
-.roi-panel{
-  background:#fff;
-  border:1px solid rgba(0,0,0,.07);
-  border-radius:.6rem;
-  box-shadow:0 1px 4px rgba(14,30,56,.06),0 4px 12px rgba(14,30,56,.04);
-  margin-bottom:1.5rem;
-  overflow:hidden;
-}
-.roi-panel-header{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:.9rem 1.4rem .75rem;
-  border-bottom:1.5px solid """ + CAP_BORDER + r""";
-  cursor:pointer;
-  user-select:none;
-}
-.roi-panel-header:hover{background:#FAFCFE}
-.roi-header-left{display:flex;align-items:center;gap:.75rem}
-.roi-panel-icon{
-  width:32px;height:32px;border-radius:.4rem;
-  background:linear-gradient(135deg,#0E2A50,#1A4A80);
-  display:flex;align-items:center;justify-content:center;
-  font-size:.95rem;flex-shrink:0;
-}
-.roi-panel-title{
-  font-size:.72rem;font-weight:700;text-transform:uppercase;
-  letter-spacing:.08em;color:#607A96;
-}
-.roi-panel-subtitle{font-size:.78rem;color:#AABFCC;margin-top:.1rem}
-.roi-toggle-hint{font-size:.72rem;color:#AABFCC}
-.roi-body{padding:1.1rem 1.4rem 1.25rem;display:none}
-.roi-body.open{display:block}
-
-/* Scenario presets */
-.scenario-row{
-  display:flex;gap:.5rem;margin-bottom:1.1rem;
-  flex-wrap:wrap;
-}
-.scenario-btn{
-  padding:.32rem .9rem;
-  border-radius:9999px;
-  font-size:.72rem;font-weight:600;
-  cursor:pointer;
-  border:1.5px solid """ + CAP_BORDER + r""";
-  background:#F4F7FB;
-  color:#607A96;
-  transition:all .15s;
-  letter-spacing:.01em;
-}
-.scenario-btn.active{
-  background:""" + CAP_NAVY + r""";
-  border-color:""" + CAP_NAVY + r""";
-  color:#fff;
-  box-shadow:0 2px 8px rgba(14,30,56,.25);
-}
-.scenario-btn:hover:not(.active){background:#E8EDF5;border-color:#C8D4E0}
-
-/* Assumptions row */
-.roi-assumptions{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:.75rem;
-  margin-bottom:1.25rem;
-  padding:.85rem 1rem;
-  background:#F4F7FB;
-  border:1px solid """ + CAP_BORDER + r""";
-  border-radius:.45rem;
-}
-.roi-assumption{
-  display:flex;flex-direction:column;gap:.25rem;
-}
-.roi-assumption label{
-  font-size:.64rem;font-weight:700;text-transform:uppercase;
-  letter-spacing:.08em;color:#8BAABF;
-}
-.roi-assumption-val{
-  display:flex;align-items:center;gap:.3rem;
-}
-.roi-assumption input[type=range]{
-  flex:1;height:4px;
-  accent-color:""" + CAP_BLUE + r""";
-  cursor:pointer;
-}
-.roi-assumption span{
-  font-size:.78rem;font-weight:600;
-  color:""" + CAP_NAVY + r""";
-  min-width:2.8rem;text-align:right;
-  font-variant-numeric:tabular-nums;
-}
-
-/* Results grid */
-.roi-results{
-  display:grid;
-  grid-template-columns:repeat(6,1fr);
-  gap:.75rem;
-  margin-bottom:.9rem;
-}
-.roi-metric{
-  background:#F8FAFE;
-  border:1px solid """ + CAP_BORDER + r""";
-  border-radius:.45rem;
-  padding:.7rem .9rem .65rem;
-  position:relative;overflow:hidden;
-}
-.roi-metric::after{
-  content:'';position:absolute;
-  bottom:0;left:0;right:0;height:2.5px;
-  background:var(--roi-accent,""" + CAP_BLUE + r""");
-  border-radius:0 0 .45rem .45rem;
-  opacity:.7;
-}
-.roi-metric-label{
-  font-size:.62rem;font-weight:600;letter-spacing:.07em;
-  text-transform:uppercase;color:#8BAABF;margin-bottom:.4rem;
-}
-.roi-metric-value{
-  font-size:1.25rem;font-weight:700;line-height:1;
-  color:var(--roi-accent,""" + CAP_NAVY + r""");
-  letter-spacing:-.02em;
-}
-.roi-metric-sub{
-  font-size:.67rem;color:#AABFCC;margin-top:.28rem;line-height:1.4;
-}
-.roi-disclaimer{
-  font-size:.69rem;color:#B0BFCC;
-  line-height:1.5;
-  padding:.6rem .85rem;
-  background:#F8FAFE;
-  border-radius:.35rem;
-  border:1px solid """ + CAP_BORDER + r""";
-}
-
-/* Responsive: stack assumptions on tablet */
-@media(max-width:1199px){
   .roi-assumptions{grid-template-columns:repeat(2,1fr)}
-  .roi-results{grid-template-columns:repeat(3,1fr)}
-}
-@media(max-width:599px){
-  .roi-assumptions{grid-template-columns:1fr 1fr}
   .roi-results{grid-template-columns:repeat(2,1fr)}
 }
 
@@ -1556,6 +1467,49 @@ code{
   </div>
 </div>
 
+<!-- ─── Four Core Concepts strip ──────────────────────────────── -->
+<div class="concept-strip">
+  <div class="concept-strip-inner">
+
+    <div class="concept-card">
+      <div class="concept-icon" style="background:rgba(0,112,173,.18);color:#5AC0F5">&#9741;</div>
+      <div class="concept-body">
+        <div class="concept-tag" style="color:#5AC0F5">Framework</div>
+        <div class="concept-name">Agent Value Attribution</div>
+        <div class="concept-desc">The discipline that links agent activity to a measurable business outcome &mdash; not just &ldquo;it ran&rdquo;, but &ldquo;it created X hours of analyst value.&rdquo;</div>
+      </div>
+    </div>
+
+    <div class="concept-card">
+      <div class="concept-icon" style="background:rgba(30,145,96,.18);color:#3ED49A">&#128218;</div>
+      <div class="concept-body">
+        <div class="concept-tag" style="color:#3ED49A">System of Record</div>
+        <div class="concept-name">Agent Value Ledger</div>
+        <div class="concept-desc">The governed register where every agent run writes a timestamped value entry. <code style="color:#3ED49A;font-size:.65rem">runs.db</code> is the ledger for this demo.</div>
+      </div>
+    </div>
+
+    <div class="concept-card">
+      <div class="concept-icon" style="background:rgba(107,66,168,.18);color:#B08AE8">&#128200;</div>
+      <div class="concept-body">
+        <div class="concept-tag" style="color:#B08AE8">Dashboard Metric</div>
+        <div class="concept-name">Indicative ROI</div>
+        <div class="concept-desc">The executive-facing financial signal: ledger value translated into return on investment, visible at portfolio level in the Economic Impact Model below.</div>
+      </div>
+    </div>
+
+    <div class="concept-card">
+      <div class="concept-icon" style="background:rgba(232,151,10,.15);color:#F5C842">&#9881;</div>
+      <div class="concept-body">
+        <div class="concept-tag" style="color:#F5C842">Calculation Logic</div>
+        <div class="concept-name">Economic Impact Model</div>
+        <div class="concept-desc">The transparent, assumption-driven model that converts attributed hours into gross value, net value, payback period, and ROI &mdash; with adjustable scenarios.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <div class="page">
 
 <div class="kpi-row">
@@ -1595,31 +1549,31 @@ code{
   </div>
   <div class="roi-body" id="roi-body">
     <div class="scenario-row">
-      <span style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#8BAABF;align-self:center;margin-right:.25rem">Scenario</span>
+      <span style="font-size:.70rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#4A6A84;align-self:center;margin-right:.25rem">Scenario</span>
       <button class="scenario-btn" id="scen-conservative" onclick="applyScenario('conservative')">Conservative</button>
       <button class="scenario-btn active" id="scen-expected" onclick="applyScenario('expected')">Expected</button>
       <button class="scenario-btn" id="scen-upside" onclick="applyScenario('upside')">Upside</button>
     </div>
     <div class="roi-assumptions">
       <div class="roi-assumption">
-        <label>Analyst rate (&#163;/h)</label>
+        <label>Analyst rate (&#8364;/h)</label>
         <div class="roi-assumption-val">
           <input type="range" id="ra-rate" min="60" max="200" step="5" value="110" oninput="updateRoi()">
-          <span id="ra-rate-val">&#163;110</span>
+          <span id="ra-rate-val">&#8364;110</span>
         </div>
       </div>
       <div class="roi-assumption">
-        <label>One-time build cost (&#163;k)</label>
+        <label>One-time build cost (&#8364;k)</label>
         <div class="roi-assumption-val">
           <input type="range" id="ra-build" min="20" max="400" step="10" value="120" oninput="updateRoi()">
-          <span id="ra-build-val">&#163;120k</span>
+          <span id="ra-build-val">&#8364;120k</span>
         </div>
       </div>
       <div class="roi-assumption">
-        <label>Monthly operating cost (&#163;k)</label>
+        <label>Monthly operating cost (&#8364;k)</label>
         <div class="roi-assumption-val">
           <input type="range" id="ra-opex" min="1" max="30" step="1" value="6" oninput="updateRoi()">
-          <span id="ra-opex-val">&#163;6k</span>
+          <span id="ra-opex-val">&#8364;6k</span>
         </div>
       </div>
       <div class="roi-assumption">
@@ -1629,65 +1583,11 @@ code{
           <span id="ra-util-val">70%</span>
         </div>
       </div>
-    </div>
-    <div class="roi-results" id="roi-results">
-      <!-- populated by JS -->
-    </div>
-    <div class="roi-disclaimer">
-      <strong>Important:</strong> All figures are illustrative estimates based on the assumptions above.
-      Actual value will vary by engagement mix, analyst utilisation, and adoption rate.
-      This model is intended to support internal business case conversations &mdash; it does not constitute a commercial commitment or guarantee.
-      Attribution methodology: total <code>hours_saved</code> recorded in the Agent Value Ledger &times; analyst rate &times; utilisation.
-    </div>
-  </div>
-</div>
-
-<!-- ─── Economic Impact Model ──────────────────────────────────────────────── -->
-<div class="roi-panel">
-  <div class="roi-panel-header" onclick="toggleRoi()" id="roi-panel-header">
-    <div class="roi-header-left">
-      <div class="roi-panel-icon">&#128200;</div>
-      <div>
-        <div class="roi-panel-title">Economic Impact Model &mdash; Indicative ROI</div>
-        <div class="roi-panel-subtitle">Illustrative &middot; assumption-driven &middot; scenario-based &mdash; not a contractual estimate</div>
-      </div>
-    </div>
-    <span class="roi-toggle-hint" id="roi-toggle-hint">&#9660;&ensp;Expand</span>
-  </div>
-  <div class="roi-body" id="roi-body">
-    <div class="scenario-row">
-      <span style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#8BAABF;align-self:center;margin-right:.25rem">Scenario</span>
-      <button class="scenario-btn" id="scen-conservative" onclick="applyScenario('conservative')">Conservative</button>
-      <button class="scenario-btn active" id="scen-expected" onclick="applyScenario('expected')">Expected</button>
-      <button class="scenario-btn" id="scen-upside" onclick="applyScenario('upside')">Upside</button>
-    </div>
-    <div class="roi-assumptions">
       <div class="roi-assumption">
-        <label>Analyst rate (&#163;/h)</label>
+        <label>Annual SoW throughput</label>
         <div class="roi-assumption-val">
-          <input type="range" id="ra-rate" min="60" max="200" step="5" value="110" oninput="updateRoi()">
-          <span id="ra-rate-val">&#163;110</span>
-        </div>
-      </div>
-      <div class="roi-assumption">
-        <label>One-time build cost (&#163;k)</label>
-        <div class="roi-assumption-val">
-          <input type="range" id="ra-build" min="20" max="400" step="10" value="120" oninput="updateRoi()">
-          <span id="ra-build-val">&#163;120k</span>
-        </div>
-      </div>
-      <div class="roi-assumption">
-        <label>Monthly operating cost (&#163;k)</label>
-        <div class="roi-assumption-val">
-          <input type="range" id="ra-opex" min="1" max="30" step="1" value="6" oninput="updateRoi()">
-          <span id="ra-opex-val">&#163;6k</span>
-        </div>
-      </div>
-      <div class="roi-assumption">
-        <label>Utilisation / adoption (%)</label>
-        <div class="roi-assumption-val">
-          <input type="range" id="ra-util" min="10" max="100" step="5" value="70" oninput="updateRoi()">
-          <span id="ra-util-val">70%</span>
+          <input type="range" id="ra-hours" min="100" max="2000" step="50" value="600" oninput="updateRoi()">
+          <span id="ra-hours-val">600 h</span>
         </div>
       </div>
     </div>
@@ -2365,9 +2265,10 @@ function simulateSend() {
 const TOTAL_HOURS_RAW = %%TOTAL_HOURS_RAW%%;
 
 const SCENARIOS = {
-  conservative: { rate:80,  build:180, opex:8,  util:50 },
-  expected:     { rate:110, build:120, opex:6,  util:70 },
-  upside:       { rate:140, build:80,  opex:4,  util:90 },
+  //  rate  build  opex  util  annualHours (projected full-year throughput at scale)
+  conservative: { rate:90,  build:80,  opex:4,  util:55, hours:500  },
+  expected:     { rate:110, build:60,  opex:3,  util:70, hours:800  },
+  upside:       { rate:135, build:40,  opex:2,  util:85, hours:1200 },
 };
 
 function applyScenario(name) {
@@ -2377,121 +2278,14 @@ function applyScenario(name) {
   document.getElementById('ra-build').value = s.build;
   document.getElementById('ra-opex').value  = s.opex;
   document.getElementById('ra-util').value  = s.util;
+  document.getElementById('ra-hours').value = s.hours;
   ['conservative','expected','upside'].forEach(k => {
     document.getElementById('scen-'+k).classList.toggle('active', k===name);
   });
   updateRoi();
 }
 
-function fmt(n, prefix='\u00a3', suffix='') {
-  if (Math.abs(n) >= 1000000) return prefix + (n/1000000).toFixed(1)+'M' + suffix;
-  if (Math.abs(n) >= 1000)    return prefix + (n/1000).toFixed(1)+'k' + suffix;
-  return prefix + Math.round(n).toLocaleString() + suffix;
-}
-
-function updateRoi() {
-  const rate  = +document.getElementById('ra-rate').value;
-  const build = +document.getElementById('ra-build').value * 1000;
-  const opex  = +document.getElementById('ra-opex').value  * 1000;
-  const util  = +document.getElementById('ra-util').value  / 100;
-
-  // Update labels
-  document.getElementById('ra-rate-val').textContent  = '\u00a3' + rate;
-  document.getElementById('ra-build-val').textContent = '\u00a3' + (build/1000).toFixed(0) + 'k';
-  document.getElementById('ra-opex-val').textContent  = '\u00a3' + (opex/1000).toFixed(0) + 'k';
-  document.getElementById('ra-util-val').textContent  = Math.round(util*100) + '%';
-
-  // Computations
-  const grossHourValue  = TOTAL_HOURS_RAW * rate * util;      // adjusted attributed value
-  const annualOpex      = opex * 12;
-  const totalCost12m    = build + annualOpex;                  // 12-month total investment
-  const netValue12m     = grossHourValue - totalCost12m;
-  const roi             = totalCost12m > 0 ? (netValue12m / totalCost12m) * 100 : 0;
-  const paybackMonths   = grossHourValue > 0
-    ? Math.ceil((build + opex) / (grossHourValue / 12))
-    : null;
-
-  const roiColor  = roi >= 100 ? '#1E9160' : (roi >= 0 ? '#E8970A' : '#D94040');
-  const netColor  = netValue12m >= 0 ? '#1E9160' : '#D94040';
-
-  const metrics = [
-    {
-      label:'Attributed Value (gross)',
-      value: fmt(grossHourValue),
-      sub: TOTAL_HOURS_RAW.toFixed(1) + ' h \u00d7 \u00a3'+rate+' \u00d7 '+Math.round(util*100)+'% util',
-      accent: '#0070AD',
-    },
-    {
-      label:'One-time build cost',
-      value: fmt(build),
-      sub: 'Initial investment',
-      accent: '#8BAABF',
-    },
-    {
-      label:'Annual operating cost',
-      value: fmt(annualOpex),
-      sub: '\u00a3'+(opex/1000).toFixed(0)+'k / month \u00d7 12',
-      accent: '#8BAABF',
-    },
-    {
-      label:'Net value (12 months)',
-      value: fmt(netValue12m),
-      sub: 'Gross value minus total cost',
-      accent: netColor,
-    },
-    {
-      label:'Indicative ROI',
-      value: roi.toFixed(0) + '%',
-      sub: 'Net / total 12m investment',
-      accent: roiColor,
-    },
-    {
-      label:'Est. payback period',
-      value: paybackMonths ? (paybackMonths <= 24 ? paybackMonths + ' mo' : '> 24 mo') : '—',
-      sub: 'Months to recover build cost',
-      accent: '#6B42A8',
-    },
-  ];
-
-  document.getElementById('roi-results').innerHTML = metrics.map(m => `
-    <div class="roi-metric" style="--roi-accent:${m.accent}">
-      <div class="roi-metric-label">${m.label}</div>
-      <div class="roi-metric-value" style="color:${m.accent}">${m.value}</div>
-      <div class="roi-metric-sub">${m.sub}</div>
-    </div>`).join('');
-}
-
-function toggleRoi() {
-  const body = document.getElementById('roi-body');
-  const hint = document.getElementById('roi-toggle-hint');
-  const open = body.classList.toggle('open');
-  hint.innerHTML = open ? '&#9650;&ensp;Collapse' : '&#9660;&ensp;Expand';
-  if (open) updateRoi();
-}
-
-// ─── Economic Impact Model ────────────────────────────────────────────────────
-const TOTAL_HOURS_RAW = %%TOTAL_HOURS_RAW%%;
-
-const SCENARIOS = {
-  conservative: { rate:80,  build:180, opex:8,  util:50 },
-  expected:     { rate:110, build:120, opex:6,  util:70 },
-  upside:       { rate:140, build:80,  opex:4,  util:90 },
-};
-
-function applyScenario(name) {
-  const s = SCENARIOS[name];
-  if (!s) return;
-  document.getElementById('ra-rate').value  = s.rate;
-  document.getElementById('ra-build').value = s.build;
-  document.getElementById('ra-opex').value  = s.opex;
-  document.getElementById('ra-util').value  = s.util;
-  ['conservative','expected','upside'].forEach(k => {
-    document.getElementById('scen-'+k).classList.toggle('active', k===name);
-  });
-  updateRoi();
-}
-
-function roiFmt(n, prefix='\u00a3') {
+function roiFmt(n, prefix='\u20ac') {
   if (Math.abs(n) >= 1000000) return prefix + (n/1000000).toFixed(1)+'M';
   if (Math.abs(n) >= 1000)    return prefix + (n/1000).toFixed(1)+'k';
   return prefix + Math.round(n).toLocaleString();
@@ -2502,13 +2296,17 @@ function updateRoi() {
   const build = +document.getElementById('ra-build').value * 1000;
   const opex  = +document.getElementById('ra-opex').value  * 1000;
   const util  = +document.getElementById('ra-util').value  / 100;
+  const annualHours = +document.getElementById('ra-hours').value;
 
-  document.getElementById('ra-rate-val').textContent  = '\u00a3' + rate;
-  document.getElementById('ra-build-val').textContent = '\u00a3' + (build/1000).toFixed(0) + 'k';
-  document.getElementById('ra-opex-val').textContent  = '\u00a3' + (opex/1000).toFixed(0) + 'k';
+  document.getElementById('ra-rate-val').textContent  = '\u20ac' + rate;
+  document.getElementById('ra-build-val').textContent = '\u20ac' + (build/1000).toFixed(0) + 'k';
+  document.getElementById('ra-opex-val').textContent  = '\u20ac' + (opex/1000).toFixed(0) + 'k';
   document.getElementById('ra-util-val').textContent  = Math.round(util*100) + '%';
+  document.getElementById('ra-hours-val').textContent = annualHours + ' h';
 
-  const grossHourValue = TOTAL_HOURS_RAW * rate * util;
+  // Use projected annual hours (scenario throughput) for the economic model;
+  // actual DB hours_saved is shown as context in the KPI tile above.
+  const grossHourValue = annualHours * rate * util;
   const annualOpex     = opex * 12;
   const totalCost12m   = build + annualOpex;
   const netValue12m    = grossHourValue - totalCost12m;
@@ -2522,12 +2320,12 @@ function updateRoi() {
 
   const metrics = [
     { label:'Attributed Value (gross)',  value: roiFmt(grossHourValue),
-      sub: TOTAL_HOURS_RAW.toFixed(1)+' h \u00d7 \u00a3'+rate+' \u00d7 '+Math.round(util*100)+'% util',
+      sub: annualHours+' h/yr \u00d7 \u20ac'+rate+' \u00d7 '+Math.round(util*100)+'% util',
       accent:'#0070AD' },
     { label:'One-time build cost',       value: roiFmt(build),
       sub: 'Initial investment', accent:'#8BAABF' },
     { label:'Annual operating cost',     value: roiFmt(annualOpex),
-      sub: '\u00a3'+(opex/1000).toFixed(0)+'k\u2009/\u2009month \u00d7 12', accent:'#8BAABF' },
+      sub: '\u20ac'+(opex/1000).toFixed(0)+'k\u2009/\u2009month \u00d7 12', accent:'#8BAABF' },
     { label:'Net value (12 months)',     value: roiFmt(netValue12m),
       sub: 'Gross value minus total cost', accent: netColor },
     { label:'Indicative ROI',            value: roi.toFixed(0)+'%',
