@@ -468,6 +468,7 @@ def render(db_path: str) -> str:
         "%%NAVY%%":          CAP_NAVY,
         "%%LIGHT%%":         CAP_LIGHT,
         "%%BORDER%%":        CAP_BORDER,
+        "%%TOTAL_HOURS_RAW%%": str(d["total_hours"]),
     }
     for token, value in replacements.items():
         html = html.replace(token, value)
@@ -1024,6 +1025,276 @@ code{
 }
 .footer{margin-top:3rem;text-align:center;font-size:.74rem;color:#AAC0CC}
 
+/* ─── Economic Impact panel ──────────────────────────────────────── */
+.roi-panel{
+  background:#fff;
+  border:1px solid rgba(0,0,0,.07);
+  border-radius:.6rem;
+  box-shadow:0 1px 4px rgba(14,30,56,.06),0 4px 12px rgba(14,30,56,.04);
+  margin-bottom:1.5rem;
+  overflow:hidden;
+}
+.roi-panel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.9rem 1.4rem .75rem;
+  border-bottom:1.5px solid """ + CAP_BORDER + r""";
+  cursor:pointer;
+  user-select:none;
+}
+.roi-panel-header:hover{background:#FAFCFE}
+.roi-header-left{display:flex;align-items:center;gap:.75rem}
+.roi-panel-icon{
+  width:32px;height:32px;border-radius:.4rem;
+  background:linear-gradient(135deg,#0E2A50,#1A4A80);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.95rem;flex-shrink:0;
+}
+.roi-panel-title{
+  font-size:.72rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:#607A96;
+}
+.roi-panel-subtitle{font-size:.78rem;color:#AABFCC;margin-top:.1rem}
+.roi-toggle-hint{font-size:.72rem;color:#AABFCC}
+.roi-body{padding:1.1rem 1.4rem 1.25rem;display:none}
+.roi-body.open{display:block}
+.scenario-row{
+  display:flex;gap:.5rem;margin-bottom:1.1rem;
+  flex-wrap:wrap;align-items:center;
+}
+.scenario-btn{
+  padding:.32rem .9rem;
+  border-radius:9999px;
+  font-size:.72rem;font-weight:600;
+  cursor:pointer;
+  border:1.5px solid """ + CAP_BORDER + r""";
+  background:#F4F7FB;
+  color:#607A96;
+  transition:all .15s;
+  letter-spacing:.01em;
+}
+.scenario-btn.active{
+  background:""" + CAP_NAVY + r""";
+  border-color:""" + CAP_NAVY + r""";
+  color:#fff;
+  box-shadow:0 2px 8px rgba(14,30,56,.25);
+}
+.scenario-btn:hover:not(.active){background:#E8EDF5;border-color:#C8D4E0}
+.roi-assumptions{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:.75rem;
+  margin-bottom:1.25rem;
+  padding:.85rem 1rem;
+  background:#F4F7FB;
+  border:1px solid """ + CAP_BORDER + r""";
+  border-radius:.45rem;
+}
+.roi-assumption{display:flex;flex-direction:column;gap:.25rem}
+.roi-assumption label{
+  font-size:.64rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:#8BAABF;
+}
+.roi-assumption-val{display:flex;align-items:center;gap:.5rem}
+.roi-assumption input[type=range]{
+  flex:1;height:4px;
+  accent-color:""" + CAP_BLUE + r""";
+  cursor:pointer;
+}
+.roi-assumption span{
+  font-size:.78rem;font-weight:600;
+  color:""" + CAP_NAVY + r""";
+  min-width:3.2rem;text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+.roi-results{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:.75rem;
+  margin-bottom:.9rem;
+}
+.roi-metric{
+  background:#F8FAFE;
+  border:1px solid """ + CAP_BORDER + r""";
+  border-radius:.45rem;
+  padding:.7rem .9rem .65rem;
+  position:relative;overflow:hidden;
+}
+.roi-metric::after{
+  content:'';position:absolute;
+  bottom:0;left:0;right:0;height:2.5px;
+  background:var(--roi-accent,""" + CAP_BLUE + r""");
+  border-radius:0 0 .45rem .45rem;
+  opacity:.7;
+}
+.roi-metric-label{
+  font-size:.62rem;font-weight:600;letter-spacing:.07em;
+  text-transform:uppercase;color:#8BAABF;margin-bottom:.4rem;
+}
+.roi-metric-value{
+  font-size:1.25rem;font-weight:700;line-height:1;
+  color:var(--roi-accent,""" + CAP_NAVY + r""");
+  letter-spacing:-.02em;
+}
+.roi-metric-sub{font-size:.67rem;color:#AABFCC;margin-top:.28rem;line-height:1.4}
+.roi-disclaimer{
+  font-size:.69rem;color:#B0BFCC;
+  line-height:1.5;
+  padding:.6rem .85rem;
+  background:#F8FAFE;
+  border-radius:.35rem;
+  border:1px solid """ + CAP_BORDER + r""";
+}
+@media(max-width:1199px){
+  .roi-assumptions{grid-template-columns:repeat(2,1fr)}
+  .roi-results{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:599px){
+  .roi-assumptions{grid-template-columns:1fr 1fr}
+  .roi-results{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ─── Economic Impact panel ──────────────────────────────────────── */
+.roi-panel{
+  background:#fff;
+  border:1px solid rgba(0,0,0,.07);
+  border-radius:.6rem;
+  box-shadow:0 1px 4px rgba(14,30,56,.06),0 4px 12px rgba(14,30,56,.04);
+  margin-bottom:1.5rem;
+  overflow:hidden;
+}
+.roi-panel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.9rem 1.4rem .75rem;
+  border-bottom:1.5px solid """ + CAP_BORDER + r""";
+  cursor:pointer;
+  user-select:none;
+}
+.roi-panel-header:hover{background:#FAFCFE}
+.roi-header-left{display:flex;align-items:center;gap:.75rem}
+.roi-panel-icon{
+  width:32px;height:32px;border-radius:.4rem;
+  background:linear-gradient(135deg,#0E2A50,#1A4A80);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.95rem;flex-shrink:0;
+}
+.roi-panel-title{
+  font-size:.72rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:#607A96;
+}
+.roi-panel-subtitle{font-size:.78rem;color:#AABFCC;margin-top:.1rem}
+.roi-toggle-hint{font-size:.72rem;color:#AABFCC}
+.roi-body{padding:1.1rem 1.4rem 1.25rem;display:none}
+.roi-body.open{display:block}
+
+/* Scenario presets */
+.scenario-row{
+  display:flex;gap:.5rem;margin-bottom:1.1rem;
+  flex-wrap:wrap;
+}
+.scenario-btn{
+  padding:.32rem .9rem;
+  border-radius:9999px;
+  font-size:.72rem;font-weight:600;
+  cursor:pointer;
+  border:1.5px solid """ + CAP_BORDER + r""";
+  background:#F4F7FB;
+  color:#607A96;
+  transition:all .15s;
+  letter-spacing:.01em;
+}
+.scenario-btn.active{
+  background:""" + CAP_NAVY + r""";
+  border-color:""" + CAP_NAVY + r""";
+  color:#fff;
+  box-shadow:0 2px 8px rgba(14,30,56,.25);
+}
+.scenario-btn:hover:not(.active){background:#E8EDF5;border-color:#C8D4E0}
+
+/* Assumptions row */
+.roi-assumptions{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:.75rem;
+  margin-bottom:1.25rem;
+  padding:.85rem 1rem;
+  background:#F4F7FB;
+  border:1px solid """ + CAP_BORDER + r""";
+  border-radius:.45rem;
+}
+.roi-assumption{
+  display:flex;flex-direction:column;gap:.25rem;
+}
+.roi-assumption label{
+  font-size:.64rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:#8BAABF;
+}
+.roi-assumption-val{
+  display:flex;align-items:center;gap:.3rem;
+}
+.roi-assumption input[type=range]{
+  flex:1;height:4px;
+  accent-color:""" + CAP_BLUE + r""";
+  cursor:pointer;
+}
+.roi-assumption span{
+  font-size:.78rem;font-weight:600;
+  color:""" + CAP_NAVY + r""";
+  min-width:2.8rem;text-align:right;
+  font-variant-numeric:tabular-nums;
+}
+
+/* Results grid */
+.roi-results{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:.75rem;
+  margin-bottom:.9rem;
+}
+.roi-metric{
+  background:#F8FAFE;
+  border:1px solid """ + CAP_BORDER + r""";
+  border-radius:.45rem;
+  padding:.7rem .9rem .65rem;
+  position:relative;overflow:hidden;
+}
+.roi-metric::after{
+  content:'';position:absolute;
+  bottom:0;left:0;right:0;height:2.5px;
+  background:var(--roi-accent,""" + CAP_BLUE + r""");
+  border-radius:0 0 .45rem .45rem;
+  opacity:.7;
+}
+.roi-metric-label{
+  font-size:.62rem;font-weight:600;letter-spacing:.07em;
+  text-transform:uppercase;color:#8BAABF;margin-bottom:.4rem;
+}
+.roi-metric-value{
+  font-size:1.25rem;font-weight:700;line-height:1;
+  color:var(--roi-accent,""" + CAP_NAVY + r""");
+  letter-spacing:-.02em;
+}
+.roi-metric-sub{
+  font-size:.67rem;color:#AABFCC;margin-top:.28rem;line-height:1.4;
+}
+.roi-disclaimer{
+  font-size:.69rem;color:#B0BFCC;
+  line-height:1.5;
+  padding:.6rem .85rem;
+  background:#F8FAFE;
+  border-radius:.35rem;
+  border:1px solid """ + CAP_BORDER + r""";
+}
+
+/* Responsive: stack assumptions on tablet */
+@media(max-width:1199px){
+  .roi-assumptions{grid-template-columns:repeat(2,1fr)}
+  .roi-results{grid-template-columns:repeat(3,1fr)}
+}
+@media(max-width:599px){
+  .roi-assumptions{grid-template-columns:1fr 1fr}
+  .roi-results{grid-template-columns:repeat(2,1fr)}
+}
+
 /* ─── Drag and drop ─────────────────────────────────────────────── */
 
 /* Card being dragged */
@@ -1291,12 +1562,12 @@ code{
   <div class="kpi-tile" style="--kpi-accent:%%BLUE%%">
     <div class="kpi-label">Engagements in scope</div>
     <div class="kpi-value">%%TOTAL_OPPS%%</div>
-    <div class="kpi-sub">Unique SoWs in the pipeline</div>
+    <div class="kpi-sub">Unique SoWs assessed for outcome-based pricing</div>
   </div>
   <div class="kpi-tile" style="--kpi-accent:%%COVERAGE_COLOR%%">
     <div class="kpi-label">Validated coverage</div>
     <div class="kpi-value" style="color:%%COVERAGE_COLOR%%">%%COVERAGE_PCT%%%</div>
-    <div class="kpi-sub">%%VALIDATED_CNT%% of %%TOTAL_OPPS%% engagements validated</div>
+    <div class="kpi-sub">%%VALIDATED_CNT%% of %%TOTAL_OPPS%% engagements with confirmed verdict</div>
   </div>
   <div class="kpi-tile" style="--kpi-accent:#1E9160">
     <div class="kpi-label">Attributed Value</div>
@@ -1307,6 +1578,128 @@ code{
     <div class="kpi-label">Value Realization candidates</div>
     <div class="kpi-value" style="color:#6B42A8">%%OUTCOME_READY%%</div>
     <div class="kpi-sub">Engagements cleared for outcome-based pricing</div>
+  </div>
+</div>
+
+<!-- ─── Economic Impact Model ──────────────────────────────────── -->
+<div class="roi-panel">
+  <div class="roi-panel-header" onclick="toggleRoi()" id="roi-panel-header">
+    <div class="roi-header-left">
+      <div class="roi-panel-icon">&#128200;</div>
+      <div>
+        <div class="roi-panel-title">Economic Impact Model &mdash; Indicative ROI</div>
+        <div class="roi-panel-subtitle">Illustrative &middot; assumption-driven &middot; scenario-based &mdash; not a contractual estimate</div>
+      </div>
+    </div>
+    <span class="roi-toggle-hint" id="roi-toggle-hint">&#9660;&ensp;Expand</span>
+  </div>
+  <div class="roi-body" id="roi-body">
+    <div class="scenario-row">
+      <span style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#8BAABF;align-self:center;margin-right:.25rem">Scenario</span>
+      <button class="scenario-btn" id="scen-conservative" onclick="applyScenario('conservative')">Conservative</button>
+      <button class="scenario-btn active" id="scen-expected" onclick="applyScenario('expected')">Expected</button>
+      <button class="scenario-btn" id="scen-upside" onclick="applyScenario('upside')">Upside</button>
+    </div>
+    <div class="roi-assumptions">
+      <div class="roi-assumption">
+        <label>Analyst rate (&#163;/h)</label>
+        <div class="roi-assumption-val">
+          <input type="range" id="ra-rate" min="60" max="200" step="5" value="110" oninput="updateRoi()">
+          <span id="ra-rate-val">&#163;110</span>
+        </div>
+      </div>
+      <div class="roi-assumption">
+        <label>One-time build cost (&#163;k)</label>
+        <div class="roi-assumption-val">
+          <input type="range" id="ra-build" min="20" max="400" step="10" value="120" oninput="updateRoi()">
+          <span id="ra-build-val">&#163;120k</span>
+        </div>
+      </div>
+      <div class="roi-assumption">
+        <label>Monthly operating cost (&#163;k)</label>
+        <div class="roi-assumption-val">
+          <input type="range" id="ra-opex" min="1" max="30" step="1" value="6" oninput="updateRoi()">
+          <span id="ra-opex-val">&#163;6k</span>
+        </div>
+      </div>
+      <div class="roi-assumption">
+        <label>Utilisation / adoption (%)</label>
+        <div class="roi-assumption-val">
+          <input type="range" id="ra-util" min="10" max="100" step="5" value="70" oninput="updateRoi()">
+          <span id="ra-util-val">70%</span>
+        </div>
+      </div>
+    </div>
+    <div class="roi-results" id="roi-results">
+      <!-- populated by JS -->
+    </div>
+    <div class="roi-disclaimer">
+      <strong>Important:</strong> All figures are illustrative estimates based on the assumptions above.
+      Actual value will vary by engagement mix, analyst utilisation, and adoption rate.
+      This model is intended to support internal business case conversations &mdash; it does not constitute a commercial commitment or guarantee.
+      Attribution methodology: total <code>hours_saved</code> recorded in the Agent Value Ledger &times; analyst rate &times; utilisation.
+    </div>
+  </div>
+</div>
+
+<!-- ─── Economic Impact Model ──────────────────────────────────────────────── -->
+<div class="roi-panel">
+  <div class="roi-panel-header" onclick="toggleRoi()" id="roi-panel-header">
+    <div class="roi-header-left">
+      <div class="roi-panel-icon">&#128200;</div>
+      <div>
+        <div class="roi-panel-title">Economic Impact Model &mdash; Indicative ROI</div>
+        <div class="roi-panel-subtitle">Illustrative &middot; assumption-driven &middot; scenario-based &mdash; not a contractual estimate</div>
+      </div>
+    </div>
+    <span class="roi-toggle-hint" id="roi-toggle-hint">&#9660;&ensp;Expand</span>
+  </div>
+  <div class="roi-body" id="roi-body">
+    <div class="scenario-row">
+      <span style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#8BAABF;align-self:center;margin-right:.25rem">Scenario</span>
+      <button class="scenario-btn" id="scen-conservative" onclick="applyScenario('conservative')">Conservative</button>
+      <button class="scenario-btn active" id="scen-expected" onclick="applyScenario('expected')">Expected</button>
+      <button class="scenario-btn" id="scen-upside" onclick="applyScenario('upside')">Upside</button>
+    </div>
+    <div class="roi-assumptions">
+      <div class="roi-assumption">
+        <label>Analyst rate (&#163;/h)</label>
+        <div class="roi-assumption-val">
+          <input type="range" id="ra-rate" min="60" max="200" step="5" value="110" oninput="updateRoi()">
+          <span id="ra-rate-val">&#163;110</span>
+        </div>
+      </div>
+      <div class="roi-assumption">
+        <label>One-time build cost (&#163;k)</label>
+        <div class="roi-assumption-val">
+          <input type="range" id="ra-build" min="20" max="400" step="10" value="120" oninput="updateRoi()">
+          <span id="ra-build-val">&#163;120k</span>
+        </div>
+      </div>
+      <div class="roi-assumption">
+        <label>Monthly operating cost (&#163;k)</label>
+        <div class="roi-assumption-val">
+          <input type="range" id="ra-opex" min="1" max="30" step="1" value="6" oninput="updateRoi()">
+          <span id="ra-opex-val">&#163;6k</span>
+        </div>
+      </div>
+      <div class="roi-assumption">
+        <label>Utilisation / adoption (%)</label>
+        <div class="roi-assumption-val">
+          <input type="range" id="ra-util" min="10" max="100" step="5" value="70" oninput="updateRoi()">
+          <span id="ra-util-val">70%</span>
+        </div>
+      </div>
+    </div>
+    <div class="roi-results" id="roi-results">
+      <!-- populated by JS -->
+    </div>
+    <div class="roi-disclaimer">
+      <strong>Important:</strong> All figures are illustrative estimates based on the assumptions above.
+      Actual value will vary by engagement mix, analyst utilisation, and adoption rate.
+      This model is intended to support internal business case conversations &mdash; it does not constitute a commercial commitment or guarantee.
+      Attribution methodology: total <code>hours_saved</code> recorded in the Agent Value Ledger &times; analyst rate &times; utilisation.
+    </div>
   </div>
 </div>
 
@@ -1353,6 +1746,7 @@ code{
 </div>
 
 <p class="footer">
+  Agent Value Ledger stored in <code>runs.db</code> &nbsp;&middot;&nbsp;
   Advance stages via card buttons &nbsp;&middot;&nbsp;
   <code>sqlite3 runs.db "UPDATE runs SET pipeline_status='under_review' WHERE opportunity_id='OPP-...'"</code>
 </p>
@@ -1863,7 +2257,7 @@ function openDetail(opp) {
     </div>
     <div class="detail-body-wrap">
       <div class="ds">
-        <div class="ds-label">Executive Summary</div>
+        <div class="ds-label">Agent Assessment</div>
         <div class="ds-summary">${d.summary||'No summary available.'}</div>
       </div>
       <div class="ds">
@@ -1872,10 +2266,12 @@ function openDetail(opp) {
       </div>
       <div class="ds">
         <div class="ds-label">KPI &amp; Measurement Gaps</div>
+        <div style="font-size:.71rem;color:#AABFCC;margin-bottom:.3rem">Gaps that block Value Realization &mdash; must be resolved before outcome-based pricing</div>
         <div class="detail-list">${kpiHtml}</div>
       </div>
       <div class="ds">
         <div class="ds-label">Recommended Commercial Direction</div>
+        <div style="font-size:.71rem;color:#AABFCC;margin-bottom:.3rem">Based on outcome readiness assessment &mdash; feeds into Agent Value Attribution</div>
         <div class="detail-direction">${d.commercial_direction}</div>
       </div>
       <div class="ds">
@@ -1918,7 +2314,7 @@ function openModal(opp) {
   const isActionable = d.recommendation==='reconsider'||d.recommendation==='recommend';
   document.getElementById('modal-body').innerHTML = `
     <div class="modal-section">
-      <div class="modal-section-title">Why this engagement was flagged</div>
+      <div class="modal-section-title">Agent Value Attribution &mdash; assessment summary</div>
       <div class="modal-body">
         <p>The Outcome Readiness Review Agent assessed <strong>${d.engagement_name}</strong> and returned a verdict of <strong>${cfg.icon||''} ${cfg.label||d.recommendation}</strong>.</p>
         <p>${d.summary||'The agent completed its analysis of the SoW.'}</p>
@@ -1963,6 +2359,198 @@ function simulateSend() {
   document.getElementById('modal-overlay').classList.remove('open');
   const d = DETAILS[activeOpp]||{}; const mgr = d.manager||{};
   showToast('✓ Instructions sent to ' + (mgr.name||'Engagement Manager'));
+}
+
+// ─── Economic Impact Model ────────────────────────────────────────────────────
+const TOTAL_HOURS_RAW = %%TOTAL_HOURS_RAW%%;
+
+const SCENARIOS = {
+  conservative: { rate:80,  build:180, opex:8,  util:50 },
+  expected:     { rate:110, build:120, opex:6,  util:70 },
+  upside:       { rate:140, build:80,  opex:4,  util:90 },
+};
+
+function applyScenario(name) {
+  const s = SCENARIOS[name];
+  if (!s) return;
+  document.getElementById('ra-rate').value  = s.rate;
+  document.getElementById('ra-build').value = s.build;
+  document.getElementById('ra-opex').value  = s.opex;
+  document.getElementById('ra-util').value  = s.util;
+  ['conservative','expected','upside'].forEach(k => {
+    document.getElementById('scen-'+k).classList.toggle('active', k===name);
+  });
+  updateRoi();
+}
+
+function fmt(n, prefix='\u00a3', suffix='') {
+  if (Math.abs(n) >= 1000000) return prefix + (n/1000000).toFixed(1)+'M' + suffix;
+  if (Math.abs(n) >= 1000)    return prefix + (n/1000).toFixed(1)+'k' + suffix;
+  return prefix + Math.round(n).toLocaleString() + suffix;
+}
+
+function updateRoi() {
+  const rate  = +document.getElementById('ra-rate').value;
+  const build = +document.getElementById('ra-build').value * 1000;
+  const opex  = +document.getElementById('ra-opex').value  * 1000;
+  const util  = +document.getElementById('ra-util').value  / 100;
+
+  // Update labels
+  document.getElementById('ra-rate-val').textContent  = '\u00a3' + rate;
+  document.getElementById('ra-build-val').textContent = '\u00a3' + (build/1000).toFixed(0) + 'k';
+  document.getElementById('ra-opex-val').textContent  = '\u00a3' + (opex/1000).toFixed(0) + 'k';
+  document.getElementById('ra-util-val').textContent  = Math.round(util*100) + '%';
+
+  // Computations
+  const grossHourValue  = TOTAL_HOURS_RAW * rate * util;      // adjusted attributed value
+  const annualOpex      = opex * 12;
+  const totalCost12m    = build + annualOpex;                  // 12-month total investment
+  const netValue12m     = grossHourValue - totalCost12m;
+  const roi             = totalCost12m > 0 ? (netValue12m / totalCost12m) * 100 : 0;
+  const paybackMonths   = grossHourValue > 0
+    ? Math.ceil((build + opex) / (grossHourValue / 12))
+    : null;
+
+  const roiColor  = roi >= 100 ? '#1E9160' : (roi >= 0 ? '#E8970A' : '#D94040');
+  const netColor  = netValue12m >= 0 ? '#1E9160' : '#D94040';
+
+  const metrics = [
+    {
+      label:'Attributed Value (gross)',
+      value: fmt(grossHourValue),
+      sub: TOTAL_HOURS_RAW.toFixed(1) + ' h \u00d7 \u00a3'+rate+' \u00d7 '+Math.round(util*100)+'% util',
+      accent: '#0070AD',
+    },
+    {
+      label:'One-time build cost',
+      value: fmt(build),
+      sub: 'Initial investment',
+      accent: '#8BAABF',
+    },
+    {
+      label:'Annual operating cost',
+      value: fmt(annualOpex),
+      sub: '\u00a3'+(opex/1000).toFixed(0)+'k / month \u00d7 12',
+      accent: '#8BAABF',
+    },
+    {
+      label:'Net value (12 months)',
+      value: fmt(netValue12m),
+      sub: 'Gross value minus total cost',
+      accent: netColor,
+    },
+    {
+      label:'Indicative ROI',
+      value: roi.toFixed(0) + '%',
+      sub: 'Net / total 12m investment',
+      accent: roiColor,
+    },
+    {
+      label:'Est. payback period',
+      value: paybackMonths ? (paybackMonths <= 24 ? paybackMonths + ' mo' : '> 24 mo') : '—',
+      sub: 'Months to recover build cost',
+      accent: '#6B42A8',
+    },
+  ];
+
+  document.getElementById('roi-results').innerHTML = metrics.map(m => `
+    <div class="roi-metric" style="--roi-accent:${m.accent}">
+      <div class="roi-metric-label">${m.label}</div>
+      <div class="roi-metric-value" style="color:${m.accent}">${m.value}</div>
+      <div class="roi-metric-sub">${m.sub}</div>
+    </div>`).join('');
+}
+
+function toggleRoi() {
+  const body = document.getElementById('roi-body');
+  const hint = document.getElementById('roi-toggle-hint');
+  const open = body.classList.toggle('open');
+  hint.innerHTML = open ? '&#9650;&ensp;Collapse' : '&#9660;&ensp;Expand';
+  if (open) updateRoi();
+}
+
+// ─── Economic Impact Model ────────────────────────────────────────────────────
+const TOTAL_HOURS_RAW = %%TOTAL_HOURS_RAW%%;
+
+const SCENARIOS = {
+  conservative: { rate:80,  build:180, opex:8,  util:50 },
+  expected:     { rate:110, build:120, opex:6,  util:70 },
+  upside:       { rate:140, build:80,  opex:4,  util:90 },
+};
+
+function applyScenario(name) {
+  const s = SCENARIOS[name];
+  if (!s) return;
+  document.getElementById('ra-rate').value  = s.rate;
+  document.getElementById('ra-build').value = s.build;
+  document.getElementById('ra-opex').value  = s.opex;
+  document.getElementById('ra-util').value  = s.util;
+  ['conservative','expected','upside'].forEach(k => {
+    document.getElementById('scen-'+k).classList.toggle('active', k===name);
+  });
+  updateRoi();
+}
+
+function roiFmt(n, prefix='\u00a3') {
+  if (Math.abs(n) >= 1000000) return prefix + (n/1000000).toFixed(1)+'M';
+  if (Math.abs(n) >= 1000)    return prefix + (n/1000).toFixed(1)+'k';
+  return prefix + Math.round(n).toLocaleString();
+}
+
+function updateRoi() {
+  const rate  = +document.getElementById('ra-rate').value;
+  const build = +document.getElementById('ra-build').value * 1000;
+  const opex  = +document.getElementById('ra-opex').value  * 1000;
+  const util  = +document.getElementById('ra-util').value  / 100;
+
+  document.getElementById('ra-rate-val').textContent  = '\u00a3' + rate;
+  document.getElementById('ra-build-val').textContent = '\u00a3' + (build/1000).toFixed(0) + 'k';
+  document.getElementById('ra-opex-val').textContent  = '\u00a3' + (opex/1000).toFixed(0) + 'k';
+  document.getElementById('ra-util-val').textContent  = Math.round(util*100) + '%';
+
+  const grossHourValue = TOTAL_HOURS_RAW * rate * util;
+  const annualOpex     = opex * 12;
+  const totalCost12m   = build + annualOpex;
+  const netValue12m    = grossHourValue - totalCost12m;
+  const roi            = totalCost12m > 0 ? (netValue12m / totalCost12m) * 100 : 0;
+  const paybackMonths  = (grossHourValue / 12) > 0
+    ? Math.ceil((build + opex) / (grossHourValue / 12))
+    : null;
+
+  const roiColor = roi >= 100 ? '#1E9160' : (roi >= 0 ? '#E8970A' : '#D94040');
+  const netColor = netValue12m >= 0 ? '#1E9160' : '#D94040';
+
+  const metrics = [
+    { label:'Attributed Value (gross)',  value: roiFmt(grossHourValue),
+      sub: TOTAL_HOURS_RAW.toFixed(1)+' h \u00d7 \u00a3'+rate+' \u00d7 '+Math.round(util*100)+'% util',
+      accent:'#0070AD' },
+    { label:'One-time build cost',       value: roiFmt(build),
+      sub: 'Initial investment', accent:'#8BAABF' },
+    { label:'Annual operating cost',     value: roiFmt(annualOpex),
+      sub: '\u00a3'+(opex/1000).toFixed(0)+'k\u2009/\u2009month \u00d7 12', accent:'#8BAABF' },
+    { label:'Net value (12 months)',     value: roiFmt(netValue12m),
+      sub: 'Gross value minus total cost', accent: netColor },
+    { label:'Indicative ROI',            value: roi.toFixed(0)+'%',
+      sub: 'Net \u00f7 total 12m investment', accent: roiColor },
+    { label:'Est. payback period',
+      value: paybackMonths ? (paybackMonths <= 24 ? paybackMonths+'\u2009mo' : '> 24\u2009mo') : '\u2014',
+      sub: 'Months to recover build cost', accent:'#6B42A8' },
+  ];
+
+  document.getElementById('roi-results').innerHTML = metrics.map(m => `
+    <div class="roi-metric" style="--roi-accent:${m.accent}">
+      <div class="roi-metric-label">${m.label}</div>
+      <div class="roi-metric-value" style="color:${m.accent}">${m.value}</div>
+      <div class="roi-metric-sub">${m.sub}</div>
+    </div>`).join('');
+}
+
+function toggleRoi() {
+  const body = document.getElementById('roi-body');
+  const hint = document.getElementById('roi-toggle-hint');
+  const open = body.classList.toggle('open');
+  hint.innerHTML = open ? '&#9650;&ensp;Collapse' : '&#9660;&ensp;Expand';
+  if (open) updateRoi();
 }
 
 // ─── Toast ───────────────────────────────────────────────────────────────────
