@@ -709,7 +709,7 @@ body{
 }
 .left-col{min-width:0;display:flex;flex-direction:column}
 .board-section{margin-top:.8rem}
-.board-scroll{overflow-x:auto;padding:.2rem .4rem .75rem}
+.board-scroll{overflow-x:auto;padding:.2rem 1rem .75rem}
 .pipeline{
   display:grid;
   grid-template-columns:repeat(7,minmax(160px,1fr));
@@ -1149,6 +1149,7 @@ code{
 .roi-bar{
   display:flex;align-items:center;gap:0;
   padding:0 1.4rem;height:52px;flex-wrap:nowrap;
+  overflow:visible;
 }
 .roi-bar-label{
   font-size:.62rem;font-weight:700;letter-spacing:.07em;
@@ -1185,19 +1186,20 @@ code{
 }
 .roi-detail-btn:hover{background:#F0F4FA;color:#1E3450}
 .roi-detail-popover{
-  display:none;position:absolute;top:calc(100% + 6px);left:0;
+  display:none;position:fixed;
   background:#fff;border:1px solid #DDE5EF;border-radius:.5rem;
   box-shadow:0 8px 24px rgba(14,30,56,.14);
-  padding:.7rem .8rem;z-index:200;min-width:240px;
+  padding:.7rem .8rem;z-index:300;min-width:240px;
   grid-template-columns:1fr 1fr 1fr;gap:.5rem;
+  pointer-events:none;
 }
 .roi-detail-trigger:hover .roi-detail-popover,
-.roi-detail-trigger:focus-within .roi-detail-popover{display:grid}
+.roi-detail-trigger:focus-within .roi-detail-popover{display:grid;pointer-events:auto}
 .roi-popover-metric{display:flex;flex-direction:column;gap:.1rem}
 .roi-popover-label{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#3A5470}
 .roi-popover-val{font-size:.88rem;font-weight:700;color:#0E1E38;letter-spacing:-.02em}
 .roi-popover-sub{font-size:.62rem;color:#6A8AA4;line-height:1.3}
-.roi-bar-scenarios{display:flex;align-items:center;gap:.25rem;margin-left:auto;padding-left:1rem;flex-shrink:0}
+.roi-bar-scenarios{display:flex;align-items:center;gap:.25rem;margin-left:auto;padding-left:1rem;flex-shrink:0;position:relative;z-index:400}
 .roi-bar-scen{
   padding:.15rem .5rem;border-radius:9999px;
   font-size:.62rem;font-weight:600;cursor:pointer;
@@ -2468,7 +2470,19 @@ function showToast(msg) {
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => applyScenario('expected'));
+document.addEventListener('DOMContentLoaded', () => {
+  applyScenario('expected');
+  // Position the detail popover using fixed coords on trigger hover
+  const trigger = document.querySelector('.roi-detail-trigger');
+  const popover = document.getElementById('roi-detail-popover');
+  if (trigger && popover) {
+    trigger.addEventListener('mouseenter', () => {
+      const r = trigger.getBoundingClientRect();
+      popover.style.top  = (r.bottom + 6) + 'px';
+      popover.style.left = r.left + 'px';
+    });
+  }
+});
 </script>
 </body>
 </html>
