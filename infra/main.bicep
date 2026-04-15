@@ -51,7 +51,7 @@ resource aiProject 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = 
   }
   properties: {
     displayName: 'Outcome Readiness Agent'
-    description: 'Outcome-based commercial model readiness reviews for Contoso Consulting engagements'
+    description: 'Outcome-based commercial model readiness reviews for Contoso engagements'
   }
 }
 

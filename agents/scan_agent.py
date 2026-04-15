@@ -33,7 +33,7 @@ ENDPOINT   = os.getenv("FOUNDRY_PROJECT_ENDPOINT")
 PORT       = int(os.getenv("SCAN_AGENT_PORT", "8088"))
 
 INSTRUCTIONS = """
-You are the Scan Agent for Contoso Consulting's Outcome Readiness Review pipeline.
+You are the Scan Agent for Contoso's Outcome Readiness Review pipeline.
 
 STAGE: Scanned (first automated pass)
 

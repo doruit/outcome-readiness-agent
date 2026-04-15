@@ -5,7 +5,7 @@ Reviews one engagement / SoW per run and determines whether an outcome-based
 commercial model should be considered, reconsidered, or ruled out.
 
 Per run the agent returns a structured JSON response that includes:
-  - opportunity_id   : Contoso Consulting unique engagement identifier
+  - opportunity_id   : Contoso unique engagement identifier
   - run_id           : unique identifier for this specific run
   - engagement_name  : short name of the engagement
   - summary          : 2-3 sentence summary of the engagement
@@ -38,7 +38,7 @@ MODEL = os.getenv("FOUNDRY_MODEL_DEPLOYMENT_NAME", "gpt-4o")
 ENDPOINT = os.getenv("FOUNDRY_PROJECT_ENDPOINT")
 
 INSTRUCTIONS = """
-You are the Outcome Readiness Review Agent for Contoso Consulting.
+You are the Outcome Readiness Review Agent for Contoso.
 
 Your role is to review a single engagement or Statement of Work (SoW) and assess
 whether an outcome-based commercial model should be considered, reconsidered, or ruled out.
@@ -47,7 +47,7 @@ For every run you MUST return ONLY a single valid JSON object — no prose, no m
 The JSON must conform exactly to this schema:
 
 {
-  "opportunity_id":    "<string — the Contoso Consulting opportunity ID provided in the input>",
+  "opportunity_id":    "<string — the Contoso opportunity ID provided in the input>",
   "run_id":            "<string — a fresh UUID v4 you generate for this run>",
   "engagement_name":   "<string — short name of the engagement>",
   "summary":           "<string — 2-3 sentences summarising what this engagement delivers>",

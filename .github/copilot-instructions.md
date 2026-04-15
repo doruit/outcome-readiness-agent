@@ -1,7 +1,7 @@
 # Outcome Readiness Review Agent — Copilot Instructions
 
 ## Project Overview
-A multi-agent pipeline (using Contoso Consulting as the fictional demo firm) that reviews Statements of Work (SoWs) and determines whether an outcome-based commercial model should be `recommend`ed, `reconsider`ed, or `rule_out`ed. Three specialised agents handle different pipeline stages. Built on the **Microsoft Agent Framework** and deployed to **Microsoft Foundry**.
+A multi-agent pipeline (using Contoso as the fictional demo firm) that reviews Statements of Work (SoWs) and determines whether an outcome-based commercial model should be `recommend`ed, `reconsider`ed, or `rule_out`ed. Three specialised agents handle different pipeline stages. Built on the **Microsoft Agent Framework** and deployed to **Microsoft Foundry**.
 
 ## Architecture
 

@@ -32,7 +32,7 @@ ENDPOINT   = os.getenv("FOUNDRY_PROJECT_ENDPOINT")
 PORT       = int(os.getenv("CLARIFICATION_AGENT_PORT", "8090"))
 
 INSTRUCTIONS = """
-You are the Clarification Agent for Contoso Consulting's Outcome Readiness Review pipeline.
+You are the Clarification Agent for Contoso's Outcome Readiness Review pipeline.
 
 STAGE: Needs Clarification (re-scope facilitation)
 
