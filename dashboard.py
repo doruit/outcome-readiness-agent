@@ -1,7 +1,7 @@
 """
 dashboard.py — Outcome Readiness Review · SoW Pipeline Dashboard
 -----------------------------------------------------------------
-Premium enterprise dashboard for Contoso Consulting's Outcome Readiness
+Premium enterprise dashboard for Contoso's Outcome Readiness
 Review Agent. Visualises the 7-stage SoW review pipeline with split-view
 detail panel, engagement manager ownership, and simulated activation flow.
 
@@ -481,7 +481,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Outcome Readiness Review · Contoso Consulting</title>
+<title>Outcome Readiness Review · Contoso</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
@@ -1274,9 +1274,9 @@ code{
 
 <div class="topbar">
   <div class="topbar-left">
-    <span class="topbar-brand">Contoso Consulting</span>
+    <span class="topbar-brand">Contoso</span>
     <span class="topbar-sep">·</span>
-    <span class="topbar-title">Outcome Readiness Review &mdash; SoW Pipeline</span>
+    <span class="topbar-title">Outcome Readiness Review &mdash; Agent Value Attribution Pipeline</span>
   </div>
   <div class="topbar-right">
     <span class="demo-badge">Demo</span>
@@ -1299,14 +1299,14 @@ code{
     <div class="kpi-sub">%%VALIDATED_CNT%% of %%TOTAL_OPPS%% engagements validated</div>
   </div>
   <div class="kpi-tile" style="--kpi-accent:#1E9160">
-    <div class="kpi-label">Analyst hours saved</div>
+    <div class="kpi-label">Attributed Value</div>
     <div class="kpi-value" style="color:#1E9160">%%TOTAL_HOURS%%&thinsp;h</div>
-    <div class="kpi-sub">Across %%TOTAL_RUNS%% agent runs</div>
+    <div class="kpi-sub">Analyst hours saved across %%TOTAL_RUNS%% agent runs</div>
   </div>
   <div class="kpi-tile" style="--kpi-accent:#6B42A8">
-    <div class="kpi-label">Outcome-ready</div>
+    <div class="kpi-label">Value Realization candidates</div>
     <div class="kpi-value" style="color:#6B42A8">%%OUTCOME_READY%%</div>
-    <div class="kpi-sub">Engagements with Recommend verdict</div>
+    <div class="kpi-sub">Engagements cleared for outcome-based pricing</div>
   </div>
 </div>
 
@@ -1335,7 +1335,7 @@ code{
 <div class="workspace">
   <div class="board-col">
     <div class="section-header">
-      <span class="section-title">Review Pipeline</span>
+      <span class="section-title">Agent Value Attribution Pipeline</span>
       <span style="font-size:.72rem;color:#AAC0CC">Click any card to open the detail view &rarr;</span>
     </div>
     <div class="board-scroll">
@@ -1346,7 +1346,7 @@ code{
   <div class="detail-panel" id="detail-panel">
     <div class="detail-empty" id="detail-empty">
       <div class="detail-empty-icon">&#128269;</div>
-      <div class="detail-empty-text">Select an engagement card<br>to view the full assessment</div>
+      <div class="detail-empty-text">Select an engagement card<br>to view its assessment and Attributed Value</div>
     </div>
     <div id="detail-content" style="display:none;flex:1;display:flex;flex-direction:column"></div>
   </div>
@@ -1848,7 +1848,7 @@ function openDetail(opp) {
     const rc = REC_CFG[r.recommendation]||{};
     const badge = r.recommendation?`<span style="background:${rc.bg||'#eee'};color:${rc.color||'#666'};border:1px solid ${rc.border||'#ccc'};padding:.06rem .35rem;border-radius:.25rem;font-size:.64rem;font-weight:700">${rc.icon||'·'} ${rc.label||r.recommendation}</span>`:'';
     const ts = r.created_at?r.created_at.slice(0,16).replace('T',' '):'';
-    const hrs = r.hours_saved?`<span style="font-size:.68rem;color:#8BAABF;font-variant-numeric:tabular-nums">${r.hours_saved.toFixed(1)} h</span>`:'';
+    const hrs = r.hours_saved?`<span style="font-size:.68rem;color:#8BAABF;font-variant-numeric:tabular-nums">${r.hours_saved.toFixed(1)} h attributed</span>`:'';
     return `<div class="run-history-item">${badge}<span style="font-size:.64rem;color:#AABFCC">${r.agent_name||''}</span><span style="flex:1"></span>${hrs}<span class="run-ts">${ts}</span></div>`;
   }).join('') : '<div style="font-size:.74rem;color:#AABFCC">No run history</div>';
 
@@ -1858,7 +1858,7 @@ function openDetail(opp) {
       <div class="detail-name">${d.engagement_name}</div>
       <div class="detail-verdict-row">
         <span class="detail-verdict-badge" style="background:${cfg.bg};color:${cfg.color};border:1.5px solid ${cfg.border}">${cfg.icon}&ensp;${cfg.label}</span>
-        <span class="detail-hours-badge">&#9203;&ensp;${(d.hours_saved||0).toFixed(1)}&thinsp;h analyst time saved</span>
+        <span class="detail-hours-badge">&#9203;&ensp;${(d.hours_saved||0).toFixed(1)}&thinsp;h Attributed Value</span>
       </div>
     </div>
     <div class="detail-body-wrap">
@@ -1895,7 +1895,8 @@ function openDetail(opp) {
         <button class="btn-activate" onclick="openModal('${opp}')">&#9993;&ensp;Send Instructions to ${(mgr.name||'').split(' ')[0]||'Manager'}</button>
       </div>
       <div class="ds">
-        <div class="ds-label">Run History</div>
+        <div class="ds-label">Agent Value Ledger</div>
+        <div style="font-size:.72rem;color:#AAC0CC;margin-bottom:.4rem">Attributed Value entries recorded for this engagement</div>
         ${histHtml}
       </div>
     </div>`;
@@ -1942,7 +1943,7 @@ function openModal(opp) {
         ${isActionable ? `<ul>
           <li>Contact the client to request missing KPI baselines</li>
           <li>Propose a measurement methodology and agree a control group design</li>
-          <li>Engage Contoso Consulting's commercial team to model the outcome-linked fee structure</li>
+          <li>Engage Contoso's commercial team to model the outcome-linked fee structure</li>
           <li>Update the SoW to reflect agreed KPIs, baselines, targets, and payment triggers</li>
           <li>Return the updated SoW for a re-scan before contract execution</li>
         </ul>` : `<ul>

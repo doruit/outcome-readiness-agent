@@ -65,9 +65,20 @@ The Scan Agent produces one of three verdicts:
 | ⚠️ `reconsider` | Potential exists but KPI gaps need resolving first — routed to Clarification Agent |
 | ❌ `rule_out` | No measurable outcomes or structural blockers — use T&M or fixed-fee |
 
-### Level 2 — Agent value attribution
+### Level 2 — Agent Value Attribution
 
-The agents do not just produce verdicts — they are themselves held to outcome-based standards. Each agent reports the analyst hours its automation replaced (`hours_saved`), which is scored as a 0–1 metric in Microsoft Foundry's continuous evaluation pipeline. The agents earn credit only for value produced, not for effort expended.
+The agents do not just produce verdicts — they are themselves held to outcome-based standards. This is formalised as **Agent Value Attribution**: a structured approach to measuring, recording, and surfacing the value delivered by AI agents so it can be audited, compared, and reported.
+
+Four concepts make up the framework:
+
+| Concept | Definition |
+|---|---|
+| **Agent Value Attribution** | The discipline of linking AI agent activity to a measurable business outcome — in this case, analyst hours reclaimed per engagement reviewed |
+| **Agent Value Ledger** | The operational system of record for all value entries. In this project, `runs.db` is the ledger: every agent run that produces a verdict writes an `hours_saved` entry to the ledger |
+| **Attributed Value** | The per-run output of the attribution calculation — `hours_saved` in hours (1.0–8.0). Each entry is stamped with `agent_name`, `run_id`, `opportunity_id`, and timestamp |
+| **Value Realization** | The portfolio-level accumulation of Attributed Value entries over time — the number leadership cares about: total analyst hours reclaimed, coverage rate, and outcome-ready engagement count |
+
+Each agent reports the analyst hours its automation replaced (`hours_saved`), which is scored as a 0–1 metric in Microsoft Foundry's continuous evaluation pipeline. The agents earn credit only for value produced, not for effort expended.
 
 This applies outcome-based logic at **two levels simultaneously**:
 
@@ -82,7 +93,7 @@ flowchart TD
         V -->|"No outcomes, T&M only"| RO["❌ Rule Out"]
     end
 
-    subgraph L2["Level 2 — Agent Accountability"]
+    subgraph L2["Level 2 — Agent Value Attribution"]
         direction LR
         Run["Each agent run"] --> HS["hours_saved estimate\n(1–16 h per SoW)"]
         HS --> Score["Normalised 0–1 score\nin Microsoft Foundry"]
@@ -151,7 +162,7 @@ flowchart TD
 
 ![](.github/value_attribution_agents.jpeg)
 
-The dashboard (`python dashboard.py` → http://localhost:5050) shows the full 7-stage pipeline as a Kanban board: Level 1 verdicts on each card, Level 2 `hours_saved` per engagement, and a portfolio-level agent value attribution summary across all three agents.
+The dashboard (`python dashboard.py` → http://localhost:5050) shows the full 7-stage pipeline as a Kanban board: Level 1 verdicts on each card, **Attributed Value** (`hours_saved`) per engagement, and a portfolio-level **Agent Value Ledger** summary across all three agents. The KPI tiles show Value Realization at a glance — total hours reclaimed, coverage rate, and engagement count cleared for outcome-based pricing.
 
 ---
 
