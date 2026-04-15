@@ -125,11 +125,11 @@ def call_agent_with_text(opp_id, eng_name, sow_text):
 # ---------------------------------------------------------------------------
 STAGES = [
     ("intake",              "Intake",               "Awaiting agent scan"),
-    ("scanned",             "Scanned",              "Verdict ready — pending review"),
-    ("under_review",        "Under Review",         "Analyst reviewing verdict"),
-    ("needs_clarification", "Needs Clarification",  "Re-scoping in progress"),
-    ("validated",           "Validated",            "Confirmed — counts toward coverage"),
-    ("rejected",            "Rejected",             "Not suitable — re-scope required"),
+    ("scanned",             "AI Assessment",        "Automated scan complete — verdict ready"),
+    ("under_review",        "Analyst Review",       "Human analyst reviewing AI assessment"),
+    ("needs_clarification", "Clarification Required","Returned — SoW needs more information"),
+    ("validated",           "Approved",             "Analyst confirmed — counts toward coverage"),
+    ("rejected",            "Ruled Out",            "Not suitable for outcome-based model"),
     ("archived",            "Archived",             "Engagement closed"),
 ]
 STAGE_KEYS = [s[0] for s in STAGES]
@@ -310,8 +310,8 @@ def card_html(row: dict) -> str:
     cfg           = REC_CONFIG.get(rec, {})
 
     advance_label = {
-        "scanned":             "Start Review",
-        "under_review":        "Validate",
+        "scanned":             "Send to Analyst",
+        "under_review":        "Approve",
         "needs_clarification": "Return for Re-scope",
         "validated":           "Archive",
         "rejected":            "Archive",
@@ -552,130 +552,97 @@ body{
 .tm-sep{font-size:.6rem;color:#1E3450}
 
 /* ─── KPI row ────────────────────────────────────────────────────── */
-.kpi-row{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  border-bottom:1px solid #DDE5EF;
-  background:#fff;
-}
-.kpi-tile{
-  padding:.8rem 1.2rem .75rem;
-  position:relative;overflow:hidden;
-  border-right:1px solid #DDE5EF;
-}
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-bottom:1px solid #DDE5EF}
+.kpi-tile{padding:.9rem 1.4rem .8rem;position:relative;overflow:hidden;border-right:1px solid #DDE5EF}
 .kpi-tile:last-child{border-right:none}
 .kpi-tile::after{
-  content:'';position:absolute;
-  bottom:0;left:0;right:0;height:2px;
+  content:'';position:absolute;bottom:0;left:0;right:0;height:3px;
   background:var(--kpi-accent,""" + CAP_BLUE + r""");
-  border-radius:0 0 .6rem .6rem;
-  opacity:.8;
 }
-.kpi-label{
-  font-size:.65rem;font-weight:700;letter-spacing:.06em;
-  text-transform:uppercase;color:#5A7A96;margin-bottom:.3rem;
-}
-.kpi-value{
-  font-size:1.65rem;font-weight:700;line-height:1;
-  color:var(--kpi-accent,""" + CAP_NAVY + r""");letter-spacing:-.02em;
-}
-.kpi-sub{font-size:.7rem;color:#607A94;margin-top:.28rem;line-height:1.4}
+.kpi-label{font-size:.64rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#5A7A96;margin-bottom:.28rem}
+.kpi-value{font-size:1.6rem;font-weight:800;line-height:1;color:var(--kpi-accent,""" + CAP_NAVY + r""");letter-spacing:-.02em}
+.kpi-sub{font-size:.68rem;color:#607A94;margin-top:.25rem;line-height:1.4}
 
 /* ─── Outcome verdict strip ──────────────────────────────────────── */
 .outcome-strip{
-  display:flex;align-items:center;gap:1.4rem;
-  padding:.55rem 1.2rem;
-  border-bottom:1px solid #DDE5EF;
-  background:#FAFCFE;
+  display:flex;align-items:center;gap:0;
+  padding:0 1.4rem;height:38px;
+  border-bottom:1px solid #DDE5EF;background:#FAFCFE;
 }
 .outcome-strip-label{
-  font-size:.63rem;font-weight:700;letter-spacing:.07em;
-  text-transform:uppercase;color:#5A7A96;white-space:nowrap;flex-shrink:0;
+  font-size:.62rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:#5A7A96;white-space:nowrap;flex-shrink:0;
+  padding-right:.9rem;border-right:1px solid #DDE5EF;margin-right:1.2rem;
 }
-.outcome-strip-verdicts{display:flex;align-items:center;gap:1rem;flex-shrink:0}
-.osv{display:flex;align-items:center;gap:.3rem}
-.osv-icon{font-size:.72rem;font-weight:700}
-.osv-count{font-size:.95rem;font-weight:700;letter-spacing:-.01em;line-height:1}
-.osv-label{font-size:.65rem;color:#7A96B0}
+.outcome-strip-verdicts{display:flex;align-items:center;gap:0;flex-shrink:0}
+.osv{
+  display:flex;align-items:center;gap:.3rem;
+  padding:0 1rem;border-right:1px solid #DDE5EF;height:38px;
+}
+.osv:last-child{border-right:none}
+.osv-icon{font-size:.7rem;font-weight:700;flex-shrink:0}
+.osv-count{font-size:.92rem;font-weight:800;letter-spacing:-.01em;line-height:1}
+.osv-label{font-size:.63rem;color:#7A96B0;margin-left:.1rem}
 .osv-recommend .osv-icon,.osv-recommend .osv-count{color:#1A6B3C}
 .osv-reconsider .osv-icon,.osv-reconsider .osv-count{color:#92530C}
 .osv-ruleout .osv-icon,.osv-ruleout .osv-count{color:#9B1C1C}
 .outcome-strip-bar{
-  flex:1;height:5px;border-radius:3px;
-  display:flex;overflow:hidden;gap:2px;
-  background:transparent;
+  flex:1;height:4px;border-radius:2px;
+  display:flex;overflow:hidden;gap:2px;margin-left:1.2rem;
 }
-.osb-seg{height:100%;border-radius:3px;min-width:2px}
+.osb-seg{height:100%;border-radius:2px;min-width:3px}
 .osb-recommend{background:#2D9E6B}
 .osb-reconsider{background:#E8970A}
 .osb-ruleout{background:#D94040}
 
 /* ─── Section header ─────────────────────────────────────────────── */
 .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem}
-.section-title{
-  font-size:.76rem;font-weight:700;text-transform:uppercase;
-  letter-spacing:.08em;color:#3A5A78;
-}
+.section-title{font-size:.76rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#3A5A78}
 
 /* ─── Intake panel ───────────────────────────────────────────────── */
 .intake-panel{
-  padding:.7rem 1.2rem .8rem;
+  padding:0 1.4rem;height:48px;
   border-top:1px solid #DDE5EF;
-  display:flex;
-  align-items:center;
-  gap:.75rem;
-  flex-wrap:wrap;
+  display:flex;align-items:center;gap:.7rem;
+  flex-wrap:nowrap;
 }
-.intake-label{font-size:.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5A7A96;white-space:nowrap;flex-shrink:0}
-.intake-form{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;flex:1}
+.intake-label{
+  font-size:.62rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:#5A7A96;white-space:nowrap;flex-shrink:0;
+  padding-right:.9rem;border-right:1px solid #DDE5EF;margin-right:.3rem;
+}
+.intake-form{display:contents}
 .intake-field{flex:0 0 auto;min-width:0}
-.intake-field label{
-  font-size:.72rem;font-weight:700;text-transform:uppercase;
-  letter-spacing:.07em;color:#4A6A84;
-}
+.intake-field label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#4A6A84}
 .intake-field input[type=text]{
-  border:1.5px solid """ + CAP_BORDER + r""";
-  border-radius:.4rem;
-  padding:.5rem .7rem;
-  font-size:.88rem;color:""" + CAP_NAVY + r""";
-  background:#FAFCFE;
-  transition:border-color .15s,box-shadow .15s;
+  height:30px;padding:0 .65rem;
+  border:1px solid """ + CAP_BORDER + r""";
+  border-radius:.35rem;font-size:.82rem;color:""" + CAP_NAVY + r""";
+  background:#fff;outline:none;transition:border-color .15s,box-shadow .15s;
 }
-.intake-field input:focus{
-  outline:none;
-  border-color:""" + CAP_BLUE + r""";
-  box-shadow:0 0 0 3px rgba(0,112,173,.12);
+.intake-field input[type=text]:focus{
+  border-color:""" + CAP_BLUE + r""";box-shadow:0 0 0 3px rgba(0,112,173,.1);
 }
+.intake-field input[type=text]::placeholder{color:#A8C0CF}
 .drop-zone{
-  flex:2;min-width:220px;
-  border:2px dashed """ + CAP_BORDER + r""";
-  border-radius:.4rem;
-  padding:.55rem 1rem;
-  font-size:.83rem;color:#8BAABF;
-  cursor:pointer;background:#FAFCFE;
-  display:flex;align-items:center;gap:.55rem;
-  transition:border-color .2s,background .2s,color .2s;
+  flex:1;min-width:0;height:30px;
+  border:1.5px dashed """ + CAP_BORDER + r""";
+  border-radius:.35rem;
+  display:flex;align-items:center;padding:0 .75rem;
+  font-size:.78rem;color:#8BAABF;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  transition:border-color .15s,background .15s;
 }
-.drop-zone.drag-over{
-  border-color:""" + CAP_BLUE + r""";
-  background:#EDF5FF;color:""" + CAP_BLUE + r""";
-}
+.drop-zone.drag-over{border-color:""" + CAP_BLUE + r""";background:#EDF5FF;color:""" + CAP_BLUE + r"""}
 .drop-zone input[type=file]{display:none}
 .btn-scan{
-  background:""" + CAP_BLUE + r""";color:#fff;
-  border:none;border-radius:.4rem;
-  padding:.55rem 1.3rem;
-  font-size:.83rem;font-weight:600;
-  cursor:pointer;white-space:nowrap;
-  transition:background .15s,box-shadow .15s,transform .1s;
-  letter-spacing:.01em;
+  flex-shrink:0;height:30px;padding:0 1.1rem;
+  background:""" + CAP_NAVY + r""";color:#fff;border:none;border-radius:.35rem;
+  font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap;
+  transition:background .15s;
 }
-.btn-scan:hover{
-  background:#005C8F;
-  box-shadow:0 3px 10px rgba(0,112,173,.3);
-  transform:translateY(-1px);
-}
-.btn-scan:disabled{background:#B6C8D8;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-scan:hover{background:#1A3050}
+.btn-scan:disabled{background:#B6C8D8;cursor:not-allowed}
 .intake-status{font-size:.8rem;margin-top:.65rem;min-height:1.3em;color:#607A96}
 .intake-status.error{color:#C93030}
 .intake-status.ok{color:#1E9160}
@@ -1124,44 +1091,42 @@ code{
 .roi-panel{border-bottom:1px solid #DDE5EF}
 .roi-bar{
   display:flex;align-items:center;gap:0;
-  padding:.45rem 1.2rem;flex-wrap:wrap;
+  padding:0 1.4rem;height:40px;flex-wrap:nowrap;
 }
 .roi-bar-label{
-  font-size:.63rem;font-weight:700;letter-spacing:.06em;
+  font-size:.62rem;font-weight:700;letter-spacing:.07em;
   text-transform:uppercase;color:#5A7A96;
-  white-space:nowrap;margin-right:.85rem;flex-shrink:0;
+  white-space:nowrap;flex-shrink:0;
+  padding-right:.9rem;border-right:1px solid #DDE5EF;margin-right:1rem;
 }
 .roi-bar-metrics{display:flex;align-items:center;gap:0;flex:1;min-width:0}
 .roi-bar-metric{
-  display:flex;align-items:baseline;gap:.28rem;
-  padding:0 .8rem;border-right:1px solid #DDE5EF;
+  display:flex;align-items:baseline;gap:.25rem;
+  padding:0 .85rem;border-right:1px solid #DDE5EF;white-space:nowrap;
 }
 .roi-bar-metric:first-child{padding-left:0}
-.roi-bar-metric:last-child{border-right:none;margin-right:.85rem}
-.roi-bar-val{font-size:1rem;font-weight:700;letter-spacing:-.02em;color:#0E1E38}
-.roi-bar-lbl{font-size:.63rem;color:#7A96B0;white-space:nowrap}
-.roi-bar-scenarios{display:flex;align-items:center;gap:.28rem;margin-right:.75rem}
+.roi-bar-metric:last-child{border-right:none}
+.roi-bar-val{font-size:.9rem;font-weight:700;letter-spacing:-.02em;color:#0E1E38}
+.roi-bar-lbl{font-size:.62rem;color:#7A96B0;white-space:nowrap}
+.roi-bar-scenarios{display:flex;align-items:center;gap:.25rem;margin-left:auto;padding-left:1rem;flex-shrink:0}
 .roi-bar-scen{
-  padding:.18rem .55rem;border-radius:9999px;
-  font-size:.63rem;font-weight:600;cursor:pointer;
+  padding:.15rem .5rem;border-radius:9999px;
+  font-size:.62rem;font-weight:600;cursor:pointer;
   border:1px solid #C8D4E0;background:transparent;color:#607A96;
   transition:all .13s;letter-spacing:.01em;
 }
-.roi-bar-scen.active{
-  background:#0E1E38;border-color:#0E1E38;
-  color:#fff;box-shadow:0 1px 4px rgba(14,30,56,.2);
-}
+.roi-bar-scen.active{background:#0E1E38;border-color:#0E1E38;color:#fff}
 .roi-bar-scen:hover:not(.active){background:#F0F4FA}
 .roi-expand-btn{
-  font-size:.63rem;font-weight:600;color:#5A7A96;
+  font-size:.62rem;font-weight:600;color:#5A7A96;
   background:none;border:1px solid #DDE5EF;
-  border-radius:.3rem;padding:.2rem .55rem;
+  border-radius:.3rem;padding:.15rem .5rem;
   cursor:pointer;white-space:nowrap;flex-shrink:0;
-  transition:all .12s;
+  margin-left:.5rem;transition:all .12s;
 }
 .roi-expand-btn:hover{background:#F0F4FA;color:#1E3450}
 .roi-body{
-  padding:.7rem 1.2rem .8rem;
+  padding:.8rem 1.4rem .9rem;
   border-top:1px solid #DDE5EF;
   background:#FAFCFE;
 }
@@ -1711,7 +1676,7 @@ const AGENT_INFO = {
     icon: '📋',
     title: 'Authorise Review Agent',
     subtitle: 'The Review Agent will perform a deep commercial analysis.',
-    desc: (engName) => `The engagement <strong>${engName}</strong> will be moved to Under Review and the Review Agent will conduct a detailed commercial assessment.`,
+    desc: (engName) => `The engagement <strong>${engName}</strong> will be moved to Analyst Review and the AI Review Agent will conduct a detailed commercial assessment.`,
     steps: [
       'Review prior scan verdict and evidence',
       'Assess commercial model viability in depth',
@@ -1837,9 +1802,9 @@ document.addEventListener('drop', e => {
 
 // ─── Drop routing ────────────────────────────────────────────────────────────
 const LANE_LABELS = {
-  intake:'Intake', scanned:'Scanned', under_review:'Under Review',
-  needs_clarification:'Needs Clarification', validated:'Validated',
-  rejected:'Rejected', archived:'Archived',
+  intake:'Intake', scanned:'AI Assessment', under_review:'Analyst Review',
+  needs_clarification:'Clarification Required', validated:'Approved',
+  rejected:'Ruled Out', archived:'Archived',
 };
 
 function handleDrop(opp, fromLane, toLane, behavior) {
