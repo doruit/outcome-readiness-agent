@@ -346,18 +346,18 @@ def card_html(row: dict) -> str:
     rec_badge = ""
     if cfg:
         rec_badge = (f'<span class="badge-rec" style="background:{cfg["bg"]};color:{cfg["color"]};'
-                     f'border:1px solid {cfg["border"]}">{cfg["icon"]} {cfg["label"]}</span>')
+                     f'border:1px solid {cfg["border"]}" title="{cfg["label"]}">{cfg["icon"]}</span>')
 
     return f'''<div class="eng-card stage-{stage.replace("_","-")}" draggable="true" onclick="openDetail('{opp}')" id="card-{opp}" data-opp="{opp}" data-stage="{stage}">
+  <span class="card-hours">{hours:.1f} h</span>
   <div class="card-opp">{opp}</div>
   <div class="card-name">{name}</div>
-  <div class="card-verdict-row">
-    {rec_badge}
-    <span class="card-hours">{hours:.1f} h ⏱</span>
-  </div>
   {('<div class="card-summary">'+summary_short+'</div>') if summary_short else ""}
   {'<div class="card-kpi-gap">⚠ ' + str(kpi_count) + ' KPI gap' + ('s' if kpi_count!=1 else '') + '</div>' if kpi_count else ""}
-  <div class="card-mgr"><span class="mgr-avatar">{mgr_ini}</span>{mgr.get("name","")}</div>
+  <div class="card-verdict-row">
+    {rec_badge}
+    <div class="card-mgr" style="margin-bottom:0"><span class="mgr-avatar">{mgr_ini}</span>{mgr.get("name","")}</div>
+  </div>
   <div class="card-actions" onclick="event.stopPropagation()">{advance_btn}{extra_btn}</div>
 </div>'''
 
@@ -426,7 +426,8 @@ def build_board(buckets: dict) -> str:
     for key, label, hint in STAGES:
         cards  = buckets.get(key, [])
         color  = STAGE_COLOR.get(key, CAP_BLUE)
-        c_html = "".join(card_html(c) for c in cards) or '<div class="lane-empty">No engagements</div>'
+        ghost = '<div class="ghost-intake-card" onclick="openIntakeModal()">&#43; Submit New Opportunity</div>' if key == "intake" else ""
+        c_html = ghost + ("".join(card_html(c) for c in cards) or '<div class="lane-empty">No engagements</div>')
         parts.append(f'''<div class="lane lane-{key.replace("_","-")}" style="--lane-color:{color}" data-lane="{key}">
   <div class="lane-header">
     <span class="lane-dot" style="background:{color}"></span>
@@ -635,6 +636,56 @@ body{
 }
 .drop-zone.drag-over{border-color:""" + CAP_BLUE + r""";background:#EDF5FF;color:""" + CAP_BLUE + r"""}
 .drop-zone input[type=file]{display:none}
+/* --- Intake modal --- */
+.intake-modal-overlay{
+  display:none;position:fixed;inset:0;z-index:500;
+  background:rgba(14,30,56,.38);backdrop-filter:blur(3px);
+  align-items:center;justify-content:center;
+}
+.intake-modal-overlay.open{display:flex}
+.intake-modal{
+  background:#fff;border-radius:.7rem;
+  box-shadow:0 16px 48px rgba(14,30,56,.22);
+  width:min(520px,92vw);padding:1.6rem 1.8rem 1.4rem;
+  display:flex;flex-direction:column;gap:1rem;
+  animation:slideUp .2s ease;
+}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.intake-modal-header{display:flex;align-items:flex-start;justify-content:space-between}
+.intake-modal-title{font-size:1rem;font-weight:700;color:#0E1E38;letter-spacing:-.02em}
+.intake-modal-sub{font-size:.73rem;color:#5A7A96;margin-top:.2rem}
+.intake-modal-close{
+  background:none;border:none;font-size:1.2rem;cursor:pointer;
+  color:#7A96B0;line-height:1;padding:.1rem .25rem;
+  border-radius:.25rem;transition:all .12s;
+}
+.intake-modal-close:hover{background:#F0F4FA;color:#1E3450}
+.intake-modal-fields{display:flex;flex-direction:column;gap:.6rem}
+.intake-modal-field input[type=text]{
+  width:100%;box-sizing:border-box;
+  padding:.5rem .7rem;border:1px solid #DDE5EF;border-radius:.35rem;
+  font-size:.82rem;color:#0E1E38;background:#FAFCFE;
+  transition:border-color .12s;outline:none;
+}
+.intake-modal-field input[type=text]:focus{border-color:#0070AD;background:#fff}
+.intake-modal-dropzone{
+  border:1.5px dashed #C8D8E8;border-radius:.45rem;
+  padding:1.1rem;text-align:center;cursor:pointer;
+  font-size:.78rem;color:#5A7A96;transition:all .14s;background:#FAFCFE;
+}
+.intake-modal-dropzone:hover,.intake-modal-dropzone.drag-over{
+  border-color:#0070AD;background:#EDF5FF;color:#0070AD;
+}
+.intake-modal-dropzone input[type=file]{display:none}
+.intake-modal-actions{display:flex;align-items:center;gap:.6rem;justify-content:flex-end}
+.ghost-intake-card{
+  border:1.5px dashed #B8CCD8;border-radius:.45rem;
+  padding:.65rem .7rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  gap:.35rem;font-size:.78rem;font-weight:600;color:#5A8FB0;
+  background:#F7FBFF;transition:all .15s;margin-bottom:.4rem;
+}
+.ghost-intake-card:hover{border-color:#0070AD;color:#0070AD;background:#EDF5FF}
 .btn-scan{
   flex-shrink:0;height:30px;padding:0 1.1rem;
   background:""" + CAP_NAVY + r""";color:#fff;border:none;border-radius:.35rem;
@@ -739,21 +790,26 @@ body{
 }
 .card-verdict-row{
   display:flex;align-items:center;
-  justify-content:space-between;gap:.3rem;
-  margin-bottom:.35rem;
+  gap:.3rem;
+  margin-top:.3rem;
   min-width:0;
 }
+/* Hours badge — absolute top-right */
 .card-hours{
-  font-size:.72rem;color:#4A6A84;white-space:nowrap;
+  position:absolute;top:.45rem;right:.55rem;
+  font-size:.64rem;color:#fff;white-space:nowrap;
   font-variant-numeric:tabular-nums;
-  flex-shrink:0;
+  background:#3B6EA0;border-radius:9999px;
+  padding:.1rem .38rem;line-height:1.4;
+  font-weight:600;letter-spacing:-.01em;
 }
+/* Icon-only verdict badge */
 .badge-rec{
-  display:inline-flex;align-items:center;gap:.2rem;
-  padding:.18rem .5rem;border-radius:.28rem;
-  font-size:.68rem;font-weight:700;
-  letter-spacing:.02em;white-space:nowrap;
-  line-height:1.2;
+  display:inline-flex;align-items:center;justify-content:center;
+  width:1.3rem;height:1.3rem;border-radius:50%;
+  font-size:.75rem;font-weight:700;
+  line-height:1;flex-shrink:0;
+  cursor:default;
 }
 .card-summary{
   font-size:.76rem;color:#3A5470;line-height:1.5;
@@ -1091,7 +1147,7 @@ code{
 .roi-panel{border-bottom:1px solid #DDE5EF}
 .roi-bar{
   display:flex;align-items:center;gap:0;
-  padding:0 1.4rem;height:40px;flex-wrap:nowrap;
+  padding:0 1.4rem;height:52px;flex-wrap:nowrap;
 }
 .roi-bar-label{
   font-size:.62rem;font-weight:700;letter-spacing:.07em;
@@ -1100,14 +1156,46 @@ code{
   padding-right:.9rem;border-right:1px solid #DDE5EF;margin-right:1rem;
 }
 .roi-bar-metrics{display:flex;align-items:center;gap:0;flex:1;min-width:0}
-.roi-bar-metric{
-  display:flex;align-items:baseline;gap:.25rem;
-  padding:0 .85rem;border-right:1px solid #DDE5EF;white-space:nowrap;
-}
-.roi-bar-metric:first-child{padding-left:0}
-.roi-bar-metric:last-child{border-right:none}
+/* Legacy small metrics (hidden, kept for compat) */
+.roi-bar-metric{display:none}
 .roi-bar-val{font-size:.9rem;font-weight:700;letter-spacing:-.02em;color:#0E1E38}
 .roi-bar-lbl{font-size:.62rem;color:#7A96B0;white-space:nowrap}
+/* Primary KPI anchors */
+.roi-anchor{
+  display:flex;flex-direction:column;justify-content:center;
+  padding:0 1.1rem;border-right:1px solid #DDE5EF;
+  min-width:0;flex-shrink:0;
+}
+.roi-anchor:first-child{padding-left:0}
+.roi-anchor-val{
+  font-size:1.35rem;font-weight:800;letter-spacing:-.04em;line-height:1.05;
+  color:#0E1E38;
+}
+.roi-anchor-lbl{font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#7A96B0;margin-top:.06rem}
+/* Details trigger */
+.roi-detail-trigger{
+  position:relative;display:flex;align-items:center;margin-left:.6rem;flex-shrink:0;
+}
+.roi-detail-btn{
+  font-size:.61rem;font-weight:600;color:#5A7A96;cursor:pointer;
+  background:none;border:1px solid #DDE5EF;border-radius:.25rem;
+  padding:.15rem .45rem;white-space:nowrap;transition:all .12s;
+  display:flex;align-items:center;gap:.2rem;
+}
+.roi-detail-btn:hover{background:#F0F4FA;color:#1E3450}
+.roi-detail-popover{
+  display:none;position:absolute;top:calc(100% + 6px);left:0;
+  background:#fff;border:1px solid #DDE5EF;border-radius:.5rem;
+  box-shadow:0 8px 24px rgba(14,30,56,.14);
+  padding:.7rem .8rem;z-index:200;min-width:240px;
+  grid-template-columns:1fr 1fr 1fr;gap:.5rem;
+}
+.roi-detail-trigger:hover .roi-detail-popover,
+.roi-detail-trigger:focus-within .roi-detail-popover{display:grid}
+.roi-popover-metric{display:flex;flex-direction:column;gap:.1rem}
+.roi-popover-label{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#3A5470}
+.roi-popover-val{font-size:.88rem;font-weight:700;color:#0E1E38;letter-spacing:-.02em}
+.roi-popover-sub{font-size:.62rem;color:#6A8AA4;line-height:1.3}
 .roi-bar-scenarios{display:flex;align-items:center;gap:.25rem;margin-left:auto;padding-left:1rem;flex-shrink:0}
 .roi-bar-scen{
   padding:.15rem .5rem;border-radius:9999px;
@@ -1486,7 +1574,36 @@ code{
 <div class="roi-panel">
   <div class="roi-bar">
     <span class="roi-bar-label">Indicative ROI</span>
-    <div class="roi-bar-metrics" id="roi-bar-metrics"></div>
+    <div class="roi-bar-metrics" id="roi-bar-metrics">
+      <div class="roi-anchor" id="roi-anchor-roi">
+        <div class="roi-anchor-val" id="roi-anchor-val-roi">—</div>
+        <div class="roi-anchor-lbl">ROI</div>
+      </div>
+      <div class="roi-anchor" id="roi-anchor-payback" style="border-right:none">
+        <div class="roi-anchor-val" id="roi-anchor-val-payback">—</div>
+        <div class="roi-anchor-lbl">Payback</div>
+      </div>
+      <div class="roi-detail-trigger" tabindex="0">
+        <button class="roi-detail-btn">Details &#9662;</button>
+        <div class="roi-detail-popover" id="roi-detail-popover">
+          <div class="roi-popover-metric">
+            <span class="roi-popover-label">Gross value/yr</span>
+            <span class="roi-popover-val" id="pop-gross">—</span>
+            <span class="roi-popover-sub" id="pop-gross-sub"></span>
+          </div>
+          <div class="roi-popover-metric">
+            <span class="roi-popover-label">Net (12 mo)</span>
+            <span class="roi-popover-val" id="pop-net">—</span>
+            <span class="roi-popover-sub" id="pop-net-sub">Gross minus total cost</span>
+          </div>
+          <div class="roi-popover-metric">
+            <span class="roi-popover-label">Annual OpEx</span>
+            <span class="roi-popover-val" id="pop-opex">—</span>
+            <span class="roi-popover-sub" id="pop-opex-sub">Monthly &#215; 12</span>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="roi-bar-scenarios">
       <button class="roi-bar-scen" id="scen-conservative" onclick="applyScenario('conservative')">Conservative</button>
       <button class="roi-bar-scen active" id="scen-expected" onclick="applyScenario('expected')">Expected</button>
@@ -1536,22 +1653,6 @@ code{
   </div>
 </div>
 
-<div class="intake-panel">
-  <span class="intake-label">Submit a SoW</span>
-  <div class="intake-field">
-    <input type="text" id="opp-id" placeholder="Opportunity ID" style="width:140px"/>
-  </div>
-  <div class="intake-field">
-    <input type="text" id="eng-name" placeholder="Engagement name" style="width:180px"/>
-  </div>
-  <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-    <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt" onchange="onFileChosen(this)"/>
-    <span id="drop-label">&#128196;&ensp;Drop or browse PDF / DOCX / TXT</span>
-  </div>
-  <button class="btn-scan" id="upload-btn" onclick="submitUpload()" disabled>Run AI Review &rarr;</button>
-  <div class="intake-status" id="upload-status"></div>
-</div>
-
 </div><!-- /left-col -->
 
 </div><!-- /combined-panel -->
@@ -1561,6 +1662,40 @@ code{
   <div class="detail-popup" id="detail-popup" onclick="event.stopPropagation()">
     <div class="detail-popup-close"><button onclick="closeDetail()">&times;</button></div>
     <div id="detail-content" style="display:flex;flex:1;flex-direction:column"></div>
+  </div>
+</div>
+
+<!-- Intake modal -->
+<div class="intake-modal-overlay" id="intake-modal-overlay" onclick="closeIntakeModal(event)">
+  <div class="intake-modal" onclick="event.stopPropagation()">
+    <div class="intake-modal-header">
+      <div>
+        <div class="intake-modal-title">Submit New Opportunity</div>
+        <div class="intake-modal-sub">Upload a Statement of Work for AI review</div>
+      </div>
+      <button class="intake-modal-close" onclick="closeIntakeModal()">&times;</button>
+    </div>
+    <div class="intake-modal-fields">
+      <div class="intake-modal-field">
+        <input type="text" id="opp-id" placeholder="Opportunity ID (e.g. OPP-2025-042)"/>
+      </div>
+      <div class="intake-modal-field">
+        <input type="text" id="eng-name" placeholder="Engagement name"/>
+      </div>
+    </div>
+    <div class="intake-modal-dropzone" id="modal-drop-zone"
+         onclick="document.getElementById('file-input').click()"
+         ondragover="event.preventDefault();this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="handleModalDrop(event)">
+      <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt" onchange="onFileChosen(this)"/>
+      <span id="drop-label">&#128196;&ensp;Drop or click to browse PDF / DOCX / TXT</span>
+    </div>
+    <div class="intake-modal-actions">
+      <div class="intake-status" id="upload-status" style="flex:1;font-size:.74rem;color:#5A7A96"></div>
+      <button class="btn-modal-ghost" onclick="closeIntakeModal()">Cancel</button>
+      <button class="btn-scan" id="upload-btn" onclick="submitUpload()" disabled>Run AI Review &rarr;</button>
+    </div>
   </div>
 </div>
 
@@ -2272,12 +2407,20 @@ function updateRoi() {
       <div class="roi-metric-sub">${m.sub}</div>
     </div>`).join('');
 
-  // Populate the always-visible summary bar
-  const barEl = document.getElementById('roi-bar-metrics');
-  if (barEl) barEl.innerHTML =
-    `<div class="roi-bar-metric"><span class="roi-bar-val">${roiFmt(grossHourValue)}</span><span class="roi-bar-lbl">Gross value/yr</span></div>` +
-    `<div class="roi-bar-metric"><span class="roi-bar-val" style="color:${netColor}">${roiFmt(netValue12m)}</span><span class="roi-bar-lbl">Net (12 mo)</span></div>` +
-    `<div class="roi-bar-metric" style="border-right:none"><span class="roi-bar-val" style="color:${roiColor}">${roi.toFixed(0)}%</span><span class="roi-bar-lbl">ROI</span></div>`;
+  // Populate KPI anchors
+  const setEl = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+  const setStyle = (id, prop, val) => { const e = document.getElementById(id); if(e) e.style[prop] = val; };
+  const paybackTxt = paybackMonths ? (paybackMonths <= 24 ? paybackMonths+' mo' : '>24 mo') : '—';
+  setEl('roi-anchor-val-roi', roi.toFixed(0)+'%');
+  setStyle('roi-anchor-val-roi', 'color', roiColor);
+  setEl('roi-anchor-val-payback', paybackTxt);
+  setStyle('roi-anchor-val-payback', 'color', '#6B42A8');
+  // Popover secondary metrics
+  setEl('pop-gross', roiFmt(grossHourValue));
+  setEl('pop-gross-sub', annualHours+' h × €'+rate+' × '+Math.round(util*100)+'%');
+  setEl('pop-net', roiFmt(netValue12m));
+  setStyle('pop-net', 'color', netColor);
+  setEl('pop-opex', roiFmt(annualOpex));
 }
 
 function closeDetail(e) {
@@ -2286,6 +2429,27 @@ function closeDetail(e) {
   document.body.style.overflow = '';
   document.querySelectorAll('.eng-card').forEach(c=>c.classList.remove('selected'));
   activeOpp = null;
+}
+
+function openIntakeModal() {
+  document.getElementById('intake-modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(()=>document.getElementById('opp-id').focus(), 100);
+}
+function closeIntakeModal(e) {
+  if (e && e.target !== document.getElementById('intake-modal-overlay')) return;
+  document.getElementById('intake-modal-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function handleModalDrop(e) {
+  e.preventDefault();
+  const zone = document.getElementById('modal-drop-zone');
+  zone.classList.remove('drag-over');
+  const dt = e.dataTransfer;
+  if (dt && dt.files && dt.files.length > 0) {
+    onFileChosen({files: dt.files});
+    document.getElementById('drop-label').textContent = '\uD83D\uDCC4\u2002' + dt.files[0].name;
+  }
 }
 
 function toggleRoi() {
