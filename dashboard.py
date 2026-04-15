@@ -259,6 +259,9 @@ def load_data(db_path: str) -> dict:
     validated_cnt = len(buckets.get("validated", []))
     coverage_pct  = round(validated_cnt / total_opps * 100) if total_opps else 0
     outcome_ready = len([r for r in latest if r.get("recommendation") == "recommend"])
+    n_recommend  = len([r for r in latest if r.get("recommendation") == "recommend"])
+    n_reconsider = len([r for r in latest if r.get("recommendation") == "reconsider"])
+    n_rule_out   = len([r for r in latest if r.get("recommendation") == "rule_out"])
 
     # Run history per opportunity
     run_history: dict = {}
@@ -281,6 +284,7 @@ def load_data(db_path: str) -> dict:
         "total_opps": total_opps, "validated_cnt": validated_cnt,
         "coverage_pct": coverage_pct, "outcome_ready": outcome_ready,
         "run_history": run_history,
+        "n_recommend": n_recommend, "n_reconsider": n_reconsider, "n_rule_out": n_rule_out,
     }
 
 # ---------------------------------------------------------------------------
@@ -462,6 +466,9 @@ def render(db_path: str) -> str:
         "%%COVERAGE_COLOR%%": coverage_color,
         "%%VALIDATED_CNT%%": str(d["validated_cnt"]),
         "%%OUTCOME_READY%%": str(d["outcome_ready"]),
+        "%%N_RECOMMEND%%":   str(d["n_recommend"]),
+        "%%N_RECONSIDER%%":  str(d["n_reconsider"]),
+        "%%N_RULE_OUT%%":    str(d["n_rule_out"]),
         "%%BOARD_HTML%%":    board_html,
         "%%DETAILS_JSON%%":  details_json,
         "%%BLUE%%":          CAP_BLUE,
@@ -573,6 +580,35 @@ body{
   color:var(--kpi-accent,""" + CAP_NAVY + r""");letter-spacing:-.02em;
 }
 .kpi-sub{font-size:.7rem;color:#607A94;margin-top:.28rem;line-height:1.4}
+
+/* ─── Outcome verdict strip ──────────────────────────────────────── */
+.outcome-strip{
+  display:flex;align-items:center;gap:1.4rem;
+  padding:.55rem 1.2rem;
+  border-bottom:1px solid #DDE5EF;
+  background:#FAFCFE;
+}
+.outcome-strip-label{
+  font-size:.63rem;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;color:#5A7A96;white-space:nowrap;flex-shrink:0;
+}
+.outcome-strip-verdicts{display:flex;align-items:center;gap:1rem;flex-shrink:0}
+.osv{display:flex;align-items:center;gap:.3rem}
+.osv-icon{font-size:.72rem;font-weight:700}
+.osv-count{font-size:.95rem;font-weight:700;letter-spacing:-.01em;line-height:1}
+.osv-label{font-size:.65rem;color:#7A96B0}
+.osv-recommend .osv-icon,.osv-recommend .osv-count{color:#1A6B3C}
+.osv-reconsider .osv-icon,.osv-reconsider .osv-count{color:#92530C}
+.osv-ruleout .osv-icon,.osv-ruleout .osv-count{color:#9B1C1C}
+.outcome-strip-bar{
+  flex:1;height:5px;border-radius:3px;
+  display:flex;overflow:hidden;gap:2px;
+  background:transparent;
+}
+.osb-seg{height:100%;border-radius:3px;min-width:2px}
+.osb-recommend{background:#2D9E6B}
+.osb-reconsider{background:#E8970A}
+.osb-ruleout{background:#D94040}
 
 /* ─── Section header ─────────────────────────────────────────────── */
 .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem}
@@ -1452,10 +1488,33 @@ code{
     <div class="kpi-value" style="color:#1E9160">%%TOTAL_HOURS%%&thinsp;h</div>
     <div class="kpi-sub">Across %%TOTAL_RUNS%% agent runs</div>
   </div>
-  <div class="kpi-tile" style="--kpi-accent:#6B42A8">
-    <div class="kpi-label">Value Realization</div>
-    <div class="kpi-value" style="color:#6B42A8">%%OUTCOME_READY%%</div>
-    <div class="kpi-sub">Cleared for outcome-based pricing</div>
+  </div>
+</div>
+
+<!-- ─── Outcome verdict strip ────────────────────────── -->
+<div class="outcome-strip">
+  <span class="outcome-strip-label">Commercial Outcome Readiness</span>
+  <div class="outcome-strip-verdicts">
+    <div class="osv osv-recommend">
+      <span class="osv-icon">&#10003;</span>
+      <span class="osv-count">%%N_RECOMMEND%%</span>
+      <span class="osv-label">Recommend</span>
+    </div>
+    <div class="osv osv-reconsider">
+      <span class="osv-icon">&#9680;</span>
+      <span class="osv-count">%%N_RECONSIDER%%</span>
+      <span class="osv-label">Reconsider</span>
+    </div>
+    <div class="osv osv-ruleout">
+      <span class="osv-icon">&times;</span>
+      <span class="osv-count">%%N_RULE_OUT%%</span>
+      <span class="osv-label">Rule Out</span>
+    </div>
+  </div>
+  <div class="outcome-strip-bar">
+    <div class="osb-seg osb-recommend" style="flex:%%N_RECOMMEND%%"></div>
+    <div class="osb-seg osb-reconsider" style="flex:%%N_RECONSIDER%%"></div>
+    <div class="osb-seg osb-ruleout" style="flex:%%N_RULE_OUT%%"></div>
   </div>
 </div>
 
@@ -2100,6 +2159,9 @@ function openDetail(opp) {
         ${histHtml}
       </div>
     </div>`;
+
+  document.getElementById('detail-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
 // ─── Activation modal ────────────────────────────────────────────────────────
@@ -2251,10 +2313,6 @@ function updateRoi() {
     `<div class="roi-bar-metric"><span class="roi-bar-val">${roiFmt(grossHourValue)}</span><span class="roi-bar-lbl">Gross value/yr</span></div>` +
     `<div class="roi-bar-metric"><span class="roi-bar-val" style="color:${netColor}">${roiFmt(netValue12m)}</span><span class="roi-bar-lbl">Net (12 mo)</span></div>` +
     `<div class="roi-bar-metric" style="border-right:none"><span class="roi-bar-val" style="color:${roiColor}">${roi.toFixed(0)}%</span><span class="roi-bar-lbl">ROI</span></div>`;
-}
-
-  document.getElementById('detail-overlay').classList.add('open');
-  document.body.style.overflow = 'hidden';
 }
 
 function closeDetail(e) {
