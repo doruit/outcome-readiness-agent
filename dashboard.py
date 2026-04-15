@@ -597,7 +597,7 @@ body{
 .osb-ruleout{background:#D94040}
 
 /* ─── Section header ─────────────────────────────────────────────── */
-.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem}
 .section-title{font-size:.76rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#3A5A78}
 
 /* ─── Intake panel ───────────────────────────────────────────────── */
@@ -708,7 +708,7 @@ body{
   margin-top:.8rem;
 }
 .left-col{min-width:0;display:flex;flex-direction:column}
-.board-section{margin-top:.8rem}
+.board-section{margin-top:.3rem}
 .board-scroll{overflow-x:auto;padding:.2rem 1rem .75rem}
 .pipeline{
   display:grid;
