@@ -532,7 +532,7 @@ body{
 }
 
 /* ─── Page ───────────────────────────────────────────────────────── */
-.page{padding:1.75rem 2rem 5rem;max-width:1680px;margin:0 auto}
+.page{padding:1rem 1.5rem 4rem;max-width:1680px;margin:0 auto}
 
 /* ─── Topbar model taxonomy ───────────────────────────────── */
 .topbar-model{
@@ -705,11 +705,11 @@ body{
   border-radius:.7rem;
   box-shadow:0 2px 8px rgba(14,30,56,.07),0 8px 28px rgba(14,30,56,.05);
   overflow:hidden;
-  margin-top:1.4rem;
+  margin-top:.8rem;
 }
 .left-col{min-width:0;display:flex;flex-direction:column}
-.board-section{margin-top:1.4rem}
-.board-scroll{overflow-x:auto;padding-bottom:.75rem}
+.board-section{margin-top:.8rem}
+.board-scroll{overflow-x:auto;padding:.2rem .4rem .75rem}
 .pipeline{
   display:grid;
   grid-template-columns:repeat(7,minmax(160px,1fr));
