@@ -26,9 +26,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 # Brand palette
 # ---------------------------------------------------------------------------
 CAP_BLUE   = "#0070AD"
-CAP_NAVY   = "#12284C"
-CAP_LIGHT  = "#F0F4F8"
-CAP_BORDER = "#D1DCE8"
+CAP_NAVY   = "#0E1E38"
+CAP_LIGHT  = "#F4F7FB"
+CAP_BORDER = "#DDE5EF"
 
 # ---------------------------------------------------------------------------
 # Engagement manager lookup (simulated)
@@ -326,12 +326,13 @@ def card_html(row: dict) -> str:
 
     mgr_ini = initials(mgr.get("name", "??"))
 
+    has_sow = bool((row.get("sow_text") or "").strip())
+
     if is_intake:
-        has_sow = bool((row.get("sow_text") or "").strip())
         action  = (f'<button onclick="scan(event,\'{opp}\')" class="card-btn btn-primary">Run AI Review →</button>'
                    if has_sow else
                    '<div class="card-pending">⏳ Upload SoW to scan</div>')
-        return f'''<div class="eng-card stage-intake" onclick="openDetail('{opp}')" id="card-{opp}">
+        return f'''<div class="eng-card stage-intake" draggable="true" onclick="openDetail('{opp}')" id="card-{opp}" data-opp="{opp}" data-stage="intake" data-has-sow="{'1' if has_sow else '0'}">
   <div class="card-opp">{opp}</div>
   <div class="card-name">{name}</div>
   <div class="card-mgr"><span class="mgr-avatar">{mgr_ini}</span>{mgr.get("name","")}</div>
@@ -343,7 +344,7 @@ def card_html(row: dict) -> str:
         rec_badge = (f'<span class="badge-rec" style="background:{cfg["bg"]};color:{cfg["color"]};'
                      f'border:1px solid {cfg["border"]}">{cfg["icon"]} {cfg["label"]}</span>')
 
-    return f'''<div class="eng-card stage-{stage.replace("_","-")}" onclick="openDetail('{opp}')" id="card-{opp}">
+    return f'''<div class="eng-card stage-{stage.replace("_","-")}" draggable="true" onclick="openDetail('{opp}')" id="card-{opp}" data-opp="{opp}" data-stage="{stage}">
   <div class="card-opp">{opp}</div>
   <div class="card-name">{name}</div>
   <div class="card-verdict-row">
@@ -422,14 +423,14 @@ def build_board(buckets: dict) -> str:
         cards  = buckets.get(key, [])
         color  = STAGE_COLOR.get(key, CAP_BLUE)
         c_html = "".join(card_html(c) for c in cards) or '<div class="lane-empty">No engagements</div>'
-        parts.append(f'''<div class="lane lane-{key.replace("_","-")}" style="--lane-color:{color}">
+        parts.append(f'''<div class="lane lane-{key.replace("_","-")}" style="--lane-color:{color}" data-lane="{key}">
   <div class="lane-header">
     <span class="lane-dot" style="background:{color}"></span>
     <span class="lane-title">{label}</span>
     <span class="lane-count">{len(cards)}</span>
   </div>
   <div class="lane-hint">{hint}</div>
-  <div class="lane-cards">{c_html}</div>
+  <div class="lane-cards" data-lane="{key}">{c_html}</div>
 </div>''')
     return "\n".join(parts)
 
@@ -483,149 +484,790 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <title>Outcome Readiness Review · Contoso Consulting</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Inter,Arial,sans-serif;background:#EDF1F7;color:""" + CAP_NAVY + r""";min-height:100vh;font-size:14px;line-height:1.5}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:'Segoe UI',Inter,system-ui,Arial,sans-serif;
+  background:#E8EDF5;
+  color:""" + CAP_NAVY + r""";
+  min-height:100vh;
+  font-size:15px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
 
-/* Topbar */
-.topbar{background:""" + CAP_NAVY + r""";padding:.65rem 2rem;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #1C3A60}
-.topbar-left{display:flex;align-items:center;gap:.75rem}
-.topbar-brand{font-size:.85rem;font-weight:800;letter-spacing:.05em;color:""" + CAP_BLUE + r""";text-transform:uppercase}
-.topbar-sep{color:#2E4E6E;font-size:1.1rem}
-.topbar-title{font-size:.85rem;color:#A8C0D8;font-weight:400}
-.topbar-right{font-size:.72rem;color:#4A6A88;display:flex;align-items:center;gap:.75rem}
-.topbar-right a{color:#6A8CAA;text-decoration:none}
-.topbar-right a:hover{color:#A8C0D8}
-.demo-badge{background:#1C3A60;color:#6AB4E0;border:1px solid #2E527A;border-radius:.25rem;padding:.1rem .45rem;font-size:.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+/* ─── Topbar ─────────────────────────────────────────────────────── */
+.topbar{
+  background:""" + CAP_NAVY + r""";
+  padding:.7rem 2rem;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:3px solid """ + CAP_BLUE + r""";
+  position:sticky;top:0;z-index:100;
+}
+.topbar-left{display:flex;align-items:center;gap:.9rem}
+.topbar-brand{
+  font-size:.82rem;font-weight:800;letter-spacing:.09em;
+  color:#fff;text-transform:uppercase;
+}
+.topbar-sep{color:#2A4060;font-size:1.2rem;font-weight:300}
+.topbar-title{font-size:.88rem;color:#8DAFC8;font-weight:400;letter-spacing:.01em}
+.topbar-right{font-size:.75rem;color:#516A80;display:flex;align-items:center;gap:.9rem}
+.topbar-right a{color:#7BA4C0;text-decoration:none;transition:color .15s}
+.topbar-right a:hover{color:#B8D4E8}
+.demo-badge{
+  background:rgba(0,112,173,.25);
+  color:#5AC0F5;
+  border:1px solid rgba(0,112,173,.4);
+  border-radius:.2rem;
+  padding:.12rem .5rem;
+  font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+}
 
-/* Page */
-.page{padding:1.5rem 1.75rem 4rem;max-width:1600px;margin:0 auto}
+/* ─── Page ───────────────────────────────────────────────────────── */
+.page{padding:1.75rem 2rem 5rem;max-width:1680px;margin:0 auto}
 
-/* KPI row */
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem}
-.kpi-tile{background:#fff;border:1px solid """ + CAP_BORDER + r""";border-radius:.6rem;padding:1.1rem 1.25rem;box-shadow:0 1px 3px rgba(18,40,76,.06);position:relative;overflow:hidden}
-.kpi-tile::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kpi-accent,""" + CAP_BLUE + r""")}
-.kpi-label{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#7A96B0;margin-bottom:.35rem}
-.kpi-value{font-size:1.9rem;font-weight:700;line-height:1;color:var(--kpi-accent,""" + CAP_BLUE + r""")}
-.kpi-sub{font-size:.72rem;color:#9AAFBF;margin-top:.3rem}
+/* ─── KPI row ────────────────────────────────────────────────────── */
+.kpi-row{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:1rem;
+  margin-bottom:1.5rem;
+}
+.kpi-tile{
+  background:#fff;
+  border:1px solid rgba(0,0,0,.07);
+  border-radius:.6rem;
+  padding:1.1rem 1.4rem 1rem;
+  box-shadow:0 1px 4px rgba(14,30,56,.07),0 4px 12px rgba(14,30,56,.04);
+  position:relative;overflow:hidden;
+}
+.kpi-tile::after{
+  content:'';position:absolute;
+  bottom:0;left:0;right:0;height:3px;
+  background:var(--kpi-accent,""" + CAP_BLUE + r""");
+  border-radius:0 0 .6rem .6rem;
+  opacity:.8;
+}
+.kpi-label{
+  font-size:.68rem;font-weight:600;letter-spacing:.07em;
+  text-transform:uppercase;color:#7A96B0;margin-bottom:.55rem;
+}
+.kpi-value{
+  font-size:2.15rem;font-weight:700;line-height:1;
+  color:var(--kpi-accent,""" + CAP_NAVY + r""");letter-spacing:-.02em;
+}
+.kpi-sub{font-size:.74rem;color:#9AAFBF;margin-top:.4rem;line-height:1.4}
 
-/* Section header */
-.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
-.section-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#7A96B0}
+/* ─── Section header ─────────────────────────────────────────────── */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem}
+.section-title{
+  font-size:.7rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.1em;color:#8BAABF;
+}
 
-/* Intake panel */
-.intake-panel{background:#fff;border:1px solid """ + CAP_BORDER + r""";border-radius:.6rem;padding:1rem 1.25rem 1.1rem;box-shadow:0 1px 3px rgba(18,40,76,.06);margin-bottom:1.5rem}
-.intake-form{display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end}
-.intake-field{display:flex;flex-direction:column;gap:.3rem;flex:1;min-width:160px}
-.intake-field label{font-size:.67rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#7A96B0}
-.intake-field input[type=text]{border:1px solid """ + CAP_BORDER + r""";border-radius:.35rem;padding:.45rem .65rem;font-size:.82rem;color:""" + CAP_NAVY + r""";background:#F8FAFB;transition:border-color .15s,box-shadow .15s}
-.intake-field input:focus{outline:none;border-color:""" + CAP_BLUE + r""";box-shadow:0 0 0 3px rgba(0,112,173,.1)}
-.drop-zone{flex:2;min-width:220px;border:2px dashed """ + CAP_BORDER + r""";border-radius:.4rem;padding:.5rem .9rem;font-size:.8rem;color:#8BAABF;cursor:pointer;background:#F8FAFB;display:flex;align-items:center;gap:.5rem;transition:border-color .15s,background .15s}
-.drop-zone.drag-over{border-color:""" + CAP_BLUE + r""";background:#EEF7FF;color:""" + CAP_BLUE + r"""}
+/* ─── Intake panel ───────────────────────────────────────────────── */
+.intake-panel{
+  background:#fff;
+  border:1px solid rgba(0,0,0,.07);
+  border-radius:.6rem;
+  padding:1.1rem 1.4rem 1.2rem;
+  box-shadow:0 1px 4px rgba(14,30,56,.06);
+  margin-bottom:1.5rem;
+}
+.intake-form{display:flex;gap:.85rem;flex-wrap:wrap;align-items:flex-end}
+.intake-field{display:flex;flex-direction:column;gap:.3rem;flex:1;min-width:150px}
+.intake-field label{
+  font-size:.66rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.08em;color:#8BAABF;
+}
+.intake-field input[type=text]{
+  border:1.5px solid """ + CAP_BORDER + r""";
+  border-radius:.4rem;
+  padding:.5rem .7rem;
+  font-size:.88rem;color:""" + CAP_NAVY + r""";
+  background:#FAFCFE;
+  transition:border-color .15s,box-shadow .15s;
+}
+.intake-field input:focus{
+  outline:none;
+  border-color:""" + CAP_BLUE + r""";
+  box-shadow:0 0 0 3px rgba(0,112,173,.12);
+}
+.drop-zone{
+  flex:2;min-width:220px;
+  border:2px dashed """ + CAP_BORDER + r""";
+  border-radius:.4rem;
+  padding:.55rem 1rem;
+  font-size:.83rem;color:#8BAABF;
+  cursor:pointer;background:#FAFCFE;
+  display:flex;align-items:center;gap:.55rem;
+  transition:border-color .2s,background .2s,color .2s;
+}
+.drop-zone.drag-over{
+  border-color:""" + CAP_BLUE + r""";
+  background:#EDF5FF;color:""" + CAP_BLUE + r""";
+}
 .drop-zone input[type=file]{display:none}
-.btn-scan{background:""" + CAP_BLUE + r""";color:#fff;border:none;border-radius:.35rem;padding:.5rem 1.1rem;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap;align-self:flex-end;transition:background .15s,box-shadow .15s}
-.btn-scan:hover{background:#005E94;box-shadow:0 2px 6px rgba(0,112,173,.25)}
-.btn-scan:disabled{background:#B0C4D8;cursor:not-allowed}
-.intake-status{font-size:.78rem;margin-top:.6rem;min-height:1.2em;color:#5A7A99}
-.intake-status.error{color:#D94040}
-.intake-status.ok{color:#2D9E6B}
+.btn-scan{
+  background:""" + CAP_BLUE + r""";color:#fff;
+  border:none;border-radius:.4rem;
+  padding:.55rem 1.3rem;
+  font-size:.83rem;font-weight:600;
+  cursor:pointer;white-space:nowrap;
+  transition:background .15s,box-shadow .15s,transform .1s;
+  letter-spacing:.01em;
+}
+.btn-scan:hover{
+  background:#005C8F;
+  box-shadow:0 3px 10px rgba(0,112,173,.3);
+  transform:translateY(-1px);
+}
+.btn-scan:disabled{background:#B6C8D8;cursor:not-allowed;transform:none;box-shadow:none}
+.intake-status{font-size:.8rem;margin-top:.65rem;min-height:1.3em;color:#607A96}
+.intake-status.error{color:#C93030}
+.intake-status.ok{color:#1E9160}
 
-/* Workspace */
-.workspace{display:grid;grid-template-columns:1fr 390px;gap:1.25rem;align-items:start}
+/* ─── Workspace split ────────────────────────────────────────────── */
+.workspace{display:grid;grid-template-columns:1fr 410px;gap:1.4rem;align-items:start}
 .board-col{min-width:0}
-.board-scroll{overflow-x:auto;padding-bottom:.5rem}
-.pipeline{display:grid;grid-template-columns:repeat(7,minmax(155px,1fr));gap:.75rem;min-width:1085px}
+.board-scroll{overflow-x:auto;padding-bottom:.75rem}
+.pipeline{
+  display:grid;
+  grid-template-columns:repeat(7,minmax(160px,1fr));
+  gap:.8rem;min-width:1120px;
+}
 
-/* Lane */
-.lane{background:#fff;border:1px solid """ + CAP_BORDER + r""";border-top:3px solid var(--lane-color,""" + CAP_BLUE + r""");border-radius:.5rem;padding:.65rem .65rem .75rem;box-shadow:0 1px 3px rgba(18,40,76,.05);min-width:0}
-.lane-header{display:flex;align-items:center;gap:.3rem;margin-bottom:.2rem}
-.lane-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.lane-title{font-size:.75rem;font-weight:700;color:""" + CAP_NAVY + r""";flex:1}
-.lane-count{background:#EEF2F7;color:#5A7A99;border-radius:9999px;font-size:.62rem;font-weight:700;padding:.05rem .38rem}
-.lane-hint{font-size:.63rem;color:#9AAFBF;margin-bottom:.5rem;line-height:1.35}
-.lane-cards{display:flex;flex-direction:column;gap:.4rem}
-.lane-empty{font-size:.72rem;color:#C0D0DF;font-style:italic;padding:.2rem 0}
+/* ─── Lane ───────────────────────────────────────────────────────── */
+.lane{
+  background:#F8FAFE;
+  border:1px solid rgba(0,0,0,.07);
+  border-radius:.55rem;
+  padding:.7rem .7rem .85rem;
+  box-shadow:0 1px 3px rgba(14,30,56,.05);
+  min-width:0;
+  border-top:3px solid var(--lane-color,""" + CAP_BLUE + r""");
+}
+.lane-header{display:flex;align-items:center;gap:.35rem;margin-bottom:.2rem}
+.lane-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:var(--lane-color,""" + CAP_BLUE + r""")}
+.lane-title{
+  font-size:.78rem;font-weight:700;
+  color:""" + CAP_NAVY + r""";flex:1;
+  letter-spacing:.01em;
+}
+.lane-count{
+  background:rgba(0,0,0,.07);
+  color:#607A96;
+  border-radius:9999px;
+  font-size:.64rem;font-weight:700;
+  padding:.07rem .42rem;
+}
+.lane-hint{font-size:.66rem;color:#AAC0D0;margin-bottom:.6rem;line-height:1.4}
+.lane-cards{display:flex;flex-direction:column;gap:.5rem}
+.lane-empty{
+  font-size:.74rem;color:#C8D8E4;
+  font-style:italic;
+  padding:.4rem .1rem;
+  border:1px dashed #DDE8F0;
+  border-radius:.35rem;
+  text-align:center;
+}
 
-/* Engagement card */
-.eng-card{background:#F8FAFB;border:1px solid """ + CAP_BORDER + r""";border-radius:.4rem;padding:.5rem .6rem .45rem;cursor:pointer;transition:box-shadow .15s,border-color .15s,transform .1s}
-.eng-card:hover{box-shadow:0 4px 12px rgba(18,40,76,.12);border-color:var(--lane-color,""" + CAP_BLUE + r""");transform:translateY(-1px)}
-.eng-card.selected{border-color:""" + CAP_BLUE + r""";box-shadow:0 0 0 2px rgba(0,112,173,.2)}
-.card-opp{font-size:.6rem;color:#9AAFBF;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.1rem}
-.card-name{font-size:.75rem;font-weight:600;color:""" + CAP_NAVY + r""";line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:.3rem}
-.card-verdict-row{display:flex;align-items:center;justify-content:space-between;gap:.25rem;margin-bottom:.25rem}
-.card-hours{font-size:.63rem;color:#7A96B0;white-space:nowrap}
-.badge-rec{padding:.15rem .45rem;border-radius:.25rem;font-size:.67rem;font-weight:700;letter-spacing:.02em;white-space:nowrap}
-.card-summary{font-size:.65rem;color:#5A7A99;line-height:1.35;margin-bottom:.25rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.card-kpi-gap{font-size:.62rem;color:#92530C;background:#FEF9EE;border:1px solid #F6C87A;border-radius:.2rem;padding:.1rem .3rem;display:inline-block;margin-bottom:.25rem}
-.card-mgr{display:flex;align-items:center;gap:.3rem;font-size:.63rem;color:#7A96B0;margin-bottom:.3rem}
-.mgr-avatar{width:18px;height:18px;border-radius:50%;background:""" + CAP_BLUE + r""";color:#fff;font-size:.52rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.card-actions{display:flex;flex-direction:column;gap:.25rem}
-.card-pending{font-size:.65rem;color:#9AAFBF;background:""" + CAP_LIGHT + r""";border:1px dashed """ + CAP_BORDER + r""";border-radius:.25rem;padding:.2rem .4rem;margin-bottom:.25rem}
-.stage-needs-clarification{background:#FEF9EE;border-color:#F6C87A}
-.stage-validated{background:#F0FAF4;border-color:#A8D5B5}
-.stage-rejected{background:#FFF5F5;border-color:#F5AAAA}
-.stage-archived{opacity:.65}
-.card-btn{width:100%;padding:.27rem .4rem;border-radius:.25rem;font-size:.67rem;font-weight:600;cursor:pointer;border:1px solid transparent;text-align:center;transition:opacity .15s}
-.card-btn:hover{opacity:.85}
+/* ─── Engagement card ────────────────────────────────────────────── */
+.eng-card{
+  background:#fff;
+  border:1.5px solid """ + CAP_BORDER + r""";
+  border-radius:.45rem;
+  padding:.6rem .7rem .55rem;
+  cursor:pointer;
+  box-shadow:0 1px 3px rgba(14,30,56,.06);
+  transition:box-shadow .18s,border-color .18s,transform .15s;
+  position:relative;
+}
+.eng-card:hover{
+  box-shadow:0 5px 16px rgba(14,30,56,.13);
+  border-color:var(--lane-color,""" + CAP_BLUE + r""");
+  transform:translateY(-2px);
+}
+.eng-card.selected{
+  border-color:""" + CAP_BLUE + r""";
+  box-shadow:0 0 0 3px rgba(0,112,173,.15),0 4px 12px rgba(14,30,56,.1);
+}
+.card-opp{
+  font-size:.62rem;color:#A4BBCC;
+  letter-spacing:.04em;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+  margin-bottom:.15rem;
+  font-variant-numeric:tabular-nums;
+}
+.card-name{
+  font-size:.82rem;font-weight:600;
+  color:""" + CAP_NAVY + r""";line-height:1.35;
+  display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;overflow:hidden;
+  margin-bottom:.4rem;
+}
+.card-verdict-row{
+  display:flex;align-items:center;
+  justify-content:space-between;gap:.3rem;
+  margin-bottom:.3rem;
+}
+.card-hours{
+  font-size:.66rem;color:#8BAABF;white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.badge-rec{
+  display:inline-flex;align-items:center;gap:.2rem;
+  padding:.18rem .5rem;border-radius:.28rem;
+  font-size:.68rem;font-weight:700;
+  letter-spacing:.02em;white-space:nowrap;
+  line-height:1.2;
+}
+.card-summary{
+  font-size:.71rem;color:#607A96;line-height:1.45;
+  margin-bottom:.3rem;
+  display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;overflow:hidden;
+}
+.card-kpi-gap{
+  font-size:.64rem;color:#8A4D0A;
+  background:#FDF4E7;border:1px solid #F0C87A;
+  border-radius:.25rem;padding:.12rem .38rem;
+  display:inline-flex;align-items:center;gap:.25rem;
+  margin-bottom:.3rem;
+}
+.card-mgr{
+  display:flex;align-items:center;gap:.35rem;
+  font-size:.66rem;color:#8BAABF;
+  margin-bottom:.35rem;
+}
+.mgr-avatar{
+  width:20px;height:20px;border-radius:50%;
+  background:""" + CAP_BLUE + r""";color:#fff;
+  font-size:.55rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  letter-spacing:0;
+}
+.card-actions{display:flex;flex-direction:column;gap:.3rem;margin-top:.1rem}
+.card-pending{
+  font-size:.68rem;color:#AAC0D0;
+  background:#F4F7FB;border:1.5px dashed #D0DCE8;
+  border-radius:.3rem;padding:.25rem .5rem;
+  text-align:center;
+}
+
+/* Card state coloring */
+.stage-needs-clarification{background:#FEFBF3;border-color:#EDD080}
+.stage-validated{background:#F3FCF7;border-color:#9ED5B2}
+.stage-rejected{background:#FEF5F5;border-color:#ECAAAA}
+.stage-archived{opacity:.58;pointer-events:auto}
+
+/* Card buttons */
+.card-btn{
+  width:100%;padding:.3rem .45rem;
+  border-radius:.3rem;
+  font-size:.7rem;font-weight:600;
+  cursor:pointer;border:1.5px solid transparent;
+  text-align:center;
+  transition:background .12s,border-color .12s,box-shadow .12s,transform .1s;
+  letter-spacing:.01em;
+}
+.card-btn:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.card-btn:active{transform:none}
 .btn-primary{background:""" + CAP_BLUE + r""";color:#fff;border-color:""" + CAP_BLUE + r"""}
-.btn-ghost{background:""" + CAP_LIGHT + r""";color:#5A7A99;border-color:""" + CAP_BORDER + r"""}
-.btn-amber{background:#FEF3E2;color:#92530C;border-color:#F6C87A}
+.btn-primary:hover{background:#005C8F;border-color:#005C8F}
+.btn-ghost{background:#EEF2F8;color:#5A7A99;border-color:#D4DDE8}
+.btn-ghost:hover{background:#E4EBF4;border-color:#C0CDD8}
+.btn-amber{background:#FEF3E0;color:#8A4D0A;border-color:#EDD080}
+.btn-amber:hover{background:#FAEACA;border-color:#D4A840}
 
-/* Detail panel */
-.detail-panel{background:#fff;border:1px solid """ + CAP_BORDER + r""";border-radius:.6rem;box-shadow:0 2px 12px rgba(18,40,76,.08);position:sticky;top:1.25rem;max-height:calc(100vh - 2.5rem);overflow-y:auto;display:flex;flex-direction:column}
-.detail-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 2rem;text-align:center;color:#9AAFBF}
-.detail-empty-icon{font-size:2.5rem;margin-bottom:.75rem;opacity:.4}
-.detail-empty-text{font-size:.82rem;line-height:1.5}
-.detail-content{padding:1.25rem;flex:1}
-.detail-header{margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid """ + CAP_BORDER + r"""}
-.detail-opp{font-size:.67rem;color:#9AAFBF;letter-spacing:.03em;margin-bottom:.2rem}
-.detail-name{font-size:1rem;font-weight:700;color:""" + CAP_NAVY + r""";line-height:1.3;margin-bottom:.5rem}
-.detail-verdict-row{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
-.detail-section{margin-bottom:1rem}
-.detail-section-title{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AAFBF;margin-bottom:.4rem}
-.detail-body{font-size:.78rem;color:#334E68;line-height:1.55}
-.detail-list{display:flex;flex-direction:column;gap:.3rem}
-.detail-list-item{font-size:.75rem;color:#334E68;background:""" + CAP_LIGHT + r""";border:1px solid """ + CAP_BORDER + r""";border-radius:.3rem;padding:.3rem .5rem;line-height:1.4}
-.detail-kpi-item{font-size:.75rem;color:#92530C;background:#FEF9EE;border:1px solid #F6C87A;border-radius:.3rem;padding:.3rem .5rem}
-.detail-hours-badge{display:inline-flex;align-items:center;gap:.3rem;background:#EEF6FF;border:1px solid #C5DEFA;border-radius:.3rem;padding:.2rem .55rem;font-size:.72rem;font-weight:600;color:""" + CAP_BLUE + r"""}
-.detail-direction{font-size:.78rem;color:#334E68;line-height:1.55;background:""" + CAP_LIGHT + r""";border-left:3px solid """ + CAP_BLUE + r""";border-radius:0 .3rem .3rem 0;padding:.5rem .75rem}
-.detail-action-box{background:#F0FAF4;border:1px solid #A8D5B5;border-radius:.35rem;padding:.5rem .75rem;font-size:.78rem;color:#1A6B3C;line-height:1.5}
-.run-history-item{display:flex;align-items:center;gap:.5rem;font-size:.7rem;color:#5A7A99;padding:.2rem 0;border-bottom:1px solid """ + CAP_BORDER + r"""}
-.run-history-item:last-child{border-bottom:none}
-.run-ts{color:#9AAFBF;font-size:.65rem}
-.mgr-card{display:flex;align-items:center;gap:.75rem;background:""" + CAP_LIGHT + r""";border:1px solid """ + CAP_BORDER + r""";border-radius:.4rem;padding:.55rem .75rem}
-.mgr-avatar-lg{width:34px;height:34px;border-radius:50%;background:""" + CAP_BLUE + r""";color:#fff;font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+/* ─── Detail panel ───────────────────────────────────────────────── */
+.detail-panel{
+  background:#fff;
+  border:1px solid rgba(0,0,0,.08);
+  border-radius:.6rem;
+  box-shadow:0 2px 8px rgba(14,30,56,.07),0 8px 24px rgba(14,30,56,.05);
+  position:sticky;top:calc(3.1rem + 1.75rem);
+  max-height:calc(100vh - 3.1rem - 3.5rem);
+  overflow-y:auto;
+  display:flex;flex-direction:column;
+}
+.detail-empty{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:3.5rem 2rem;text-align:center;color:#AABFCC;
+  min-height:320px;
+}
+.detail-empty-icon{font-size:2.8rem;margin-bottom:.85rem;opacity:.35}
+.detail-empty-text{font-size:.88rem;line-height:1.6;color:#AABFCC}
+
+/* Detail panel inner content */
+.detail-top{
+  padding:1.3rem 1.4rem 1rem;
+  border-bottom:1.5px solid """ + CAP_BORDER + r""";
+  background:linear-gradient(to bottom,#FAFCFE,#fff);
+  border-radius:.6rem .6rem 0 0;
+}
+.detail-opp{
+  font-size:.66rem;color:#AAC0CC;
+  letter-spacing:.05em;margin-bottom:.25rem;
+  text-transform:uppercase;font-weight:600;
+}
+.detail-name{
+  font-size:1.05rem;font-weight:700;
+  color:""" + CAP_NAVY + r""";line-height:1.35;
+  margin-bottom:.65rem;
+  letter-spacing:-.01em;
+}
+.detail-verdict-row{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap}
+
+/* Detail verdict badge — larger than card badge */
+.detail-verdict-badge{
+  display:inline-flex;align-items:center;gap:.3rem;
+  padding:.3rem .85rem;border-radius:.35rem;
+  font-size:.82rem;font-weight:700;letter-spacing:.02em;
+}
+.detail-hours-badge{
+  display:inline-flex;align-items:center;gap:.3rem;
+  background:#EEF5FF;border:1.5px solid #C2D9F0;
+  border-radius:.3rem;padding:.22rem .6rem;
+  font-size:.76rem;font-weight:600;color:""" + CAP_BLUE + r""";
+}
+.detail-body-wrap{padding:1.1rem 1.4rem 1.4rem;display:flex;flex-direction:column;gap:1.15rem}
+
+/* Individual detail sections */
+.ds{display:flex;flex-direction:column;gap:.45rem}
+.ds-label{
+  font-size:.65rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.1em;color:#AAC0CC;
+}
+
+/* Summary — hero block */
+.ds-summary{
+  font-size:.85rem;color:#2C4260;
+  line-height:1.65;
+}
+
+/* Outcome / KPI list items */
+.detail-list{display:flex;flex-direction:column;gap:.35rem}
+.detail-list-item{
+  font-size:.78rem;color:#2C4260;
+  background:#F4F7FB;border:1px solid """ + CAP_BORDER + r""";
+  border-radius:.35rem;padding:.35rem .55rem;
+  line-height:1.45;display:flex;align-items:baseline;gap:.4rem;
+}
+.detail-list-item::before{content:'✓';color:#1E9160;flex-shrink:0;font-size:.72rem}
+.detail-kpi-item{
+  font-size:.78rem;color:#7A3E08;
+  background:#FDF4E7;border:1px solid #ECCF80;
+  border-radius:.35rem;padding:.35rem .55rem;
+  line-height:1.45;display:flex;align-items:baseline;gap:.4rem;
+}
+.detail-kpi-item::before{content:'⚠';flex-shrink:0;font-size:.72rem}
+
+/* Commercial direction block */
+.detail-direction{
+  font-size:.82rem;color:#2C4260;line-height:1.65;
+  background:#F0F5FA;
+  border-left:3.5px solid """ + CAP_BLUE + r""";
+  border-radius:0 .4rem .4rem 0;
+  padding:.65rem .9rem;
+}
+
+/* Next action — prominent highlight */
+.detail-action-box{
+  background:linear-gradient(135deg,#F0FAF4,#E8F7F0);
+  border:1.5px solid #8ED4AC;
+  border-radius:.4rem;
+  padding:.65rem .9rem;
+  font-size:.82rem;color:#145E32;
+  line-height:1.6;
+  font-weight:500;
+}
+
+/* Manager card */
+.mgr-card{
+  display:flex;align-items:center;gap:.85rem;
+  background:#F4F7FB;border:1px solid """ + CAP_BORDER + r""";
+  border-radius:.45rem;padding:.65rem .85rem;
+}
+.mgr-avatar-lg{
+  width:38px;height:38px;border-radius:50%;
+  background:""" + CAP_NAVY + r""";color:#fff;
+  font-size:.78rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  letter-spacing:0;
+  box-shadow:0 2px 6px rgba(14,30,56,.25);
+}
 .mgr-info{flex:1;min-width:0}
-.mgr-name{font-size:.78rem;font-weight:600;color:""" + CAP_NAVY + r"""}
-.mgr-role{font-size:.67rem;color:#7A96B0}
-.mgr-email{font-size:.65rem;color:#9AAFBF}
-.btn-activate{width:100%;padding:.55rem .75rem;background:""" + CAP_NAVY + r""";color:#fff;border:none;border-radius:.4rem;font-size:.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.4rem;transition:background .15s,box-shadow .15s;margin-top:.75rem}
-.btn-activate:hover{background:#0A1E3C;box-shadow:0 3px 8px rgba(18,40,76,.25)}
+.mgr-name{font-size:.85rem;font-weight:600;color:""" + CAP_NAVY + r""";margin-bottom:.1rem}
+.mgr-role{font-size:.71rem;color:#7A96B0}
+.mgr-email{font-size:.68rem;color:#AAC0CC;margin-top:.05rem}
 
-/* Modal */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(12,28,52,.55);backdrop-filter:blur(3px);z-index:1000;align-items:center;justify-content:center}
+/* Activate CTA */
+.btn-activate{
+  width:100%;
+  padding:.65rem .9rem;
+  background:""" + CAP_BLUE + r""";
+  color:#fff;border:none;
+  border-radius:.45rem;
+  font-size:.84rem;font-weight:700;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:.45rem;
+  transition:background .15s,box-shadow .15s,transform .12s;
+  margin-top:.75rem;
+  letter-spacing:.01em;
+}
+.btn-activate:hover{
+  background:#005C8F;
+  box-shadow:0 4px 14px rgba(0,92,143,.35);
+  transform:translateY(-1px);
+}
+
+/* Run history */
+.run-history-item{
+  display:flex;align-items:center;gap:.55rem;
+  font-size:.72rem;color:#607A96;
+  padding:.3rem 0;border-bottom:1px solid #EEF2F8;
+}
+.run-history-item:last-child{border-bottom:none}
+.run-ts{color:#AABFCC;font-size:.67rem;font-variant-numeric:tabular-nums}
+
+/* ─── Modal ──────────────────────────────────────────────────────── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(8,18,38,.6);
+  backdrop-filter:blur(4px);
+  z-index:1000;align-items:center;justify-content:center;
+}
 .modal-overlay.open{display:flex}
-.modal{background:#fff;border-radius:.75rem;box-shadow:0 20px 60px rgba(12,28,52,.3);width:min(680px,95vw);max-height:90vh;overflow-y:auto;padding:2rem;animation:modal-in .2s ease}
-@keyframes modal-in{from{opacity:0;transform:translateY(-12px) scale(.97)}to{opacity:1;transform:none}}
-.modal-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;padding-bottom:1rem;border-bottom:1px solid """ + CAP_BORDER + r"""}
-.modal-title{font-size:1.05rem;font-weight:700;color:""" + CAP_NAVY + r""";line-height:1.3}
-.modal-subtitle{font-size:.78rem;color:#7A96B0;margin-top:.2rem}
-.modal-close{background:none;border:none;cursor:pointer;font-size:1.3rem;color:#9AAFBF;line-height:1;padding:.1rem}
+.modal{
+  background:#fff;border-radius:.75rem;
+  box-shadow:0 24px 72px rgba(8,18,38,.35);
+  width:min(700px,96vw);max-height:92vh;
+  overflow-y:auto;padding:2.1rem;
+  animation:modal-in .22s ease;
+}
+@keyframes modal-in{
+  from{opacity:0;transform:translateY(-14px) scale(.97)}
+  to{opacity:1;transform:none}
+}
+.modal-header{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  margin-bottom:1.4rem;padding-bottom:1.1rem;
+  border-bottom:1.5px solid """ + CAP_BORDER + r""";
+}
+.modal-title{font-size:1.08rem;font-weight:700;color:""" + CAP_NAVY + r""";line-height:1.3}
+.modal-subtitle{font-size:.8rem;color:#8BAABF;margin-top:.2rem}
+.modal-close{
+  background:none;border:none;cursor:pointer;
+  font-size:1.4rem;color:#AABFCC;line-height:1;
+  padding:.1rem .2rem;
+  transition:color .15s;
+}
 .modal-close:hover{color:""" + CAP_NAVY + r"""}
-.modal-section{margin-bottom:1.25rem}
-.modal-section-title{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9AAFBF;margin-bottom:.45rem}
-.modal-body{font-size:.82rem;color:#334E68;line-height:1.6;background:""" + CAP_LIGHT + r""";border-radius:.35rem;padding:.65rem .85rem}
-.modal-body p{margin-bottom:.5rem}
+.modal-section{margin-bottom:1.3rem}
+.modal-section-title{
+  font-size:.67rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.09em;color:#AABFCC;margin-bottom:.5rem;
+}
+.modal-body{
+  font-size:.84rem;color:#334E68;line-height:1.65;
+  background:#F4F7FB;border-radius:.4rem;
+  padding:.75rem .95rem;
+}
+.modal-body p{margin-bottom:.55rem}
 .modal-body p:last-child{margin-bottom:0}
-.modal-body ul{padding-left:1.1rem;display:flex;flex-direction:column;gap:.25rem}
-.modal-actions{display:flex;gap:.75rem;flex-wrap:wrap;padding-top:1rem;border-top:1px solid """ + CAP_BORDER + r""";margin-top:1rem}
-.btn-send{flex:1;padding:.55rem .9rem;background:""" + CAP_BLUE + r""";color:#fff;border:none;border-radius:.35rem;font-size:.82rem;font-weight:700;cursor:pointer;transition:background .15s}
-.btn-send:hover{background:#005E94}
-.btn-modal-ghost{flex:1;padding:.55rem .9rem;background:""" + CAP_LIGHT + r""";color:#5A7A99;border:1px solid """ + CAP_BORDER + r""";border-radius:.35rem;font-size:.82rem;font-weight:600;cursor:pointer}
-.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(1rem);background:""" + CAP_NAVY + r""";color:#fff;border-radius:.4rem;padding:.6rem 1.25rem;font-size:.82rem;font-weight:500;box-shadow:0 4px 16px rgba(12,28,52,.3);opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;white-space:nowrap;z-index:2000}
+.modal-body ul{padding-left:1.2rem;display:flex;flex-direction:column;gap:.3rem}
+.modal-actions{
+  display:flex;gap:.8rem;flex-wrap:wrap;
+  padding-top:1.1rem;border-top:1.5px solid """ + CAP_BORDER + r""";
+  margin-top:1rem;
+}
+.btn-send{
+  flex:1;padding:.6rem 1rem;
+  background:""" + CAP_BLUE + r""";color:#fff;
+  border:none;border-radius:.4rem;
+  font-size:.84rem;font-weight:700;cursor:pointer;
+  transition:background .15s,box-shadow .15s;
+  letter-spacing:.01em;
+}
+.btn-send:hover{background:#005C8F;box-shadow:0 3px 10px rgba(0,92,143,.3)}
+.btn-modal-ghost{
+  flex:1;padding:.6rem 1rem;
+  background:#F4F7FB;color:#607A96;
+  border:1.5px solid """ + CAP_BORDER + r""";
+  border-radius:.4rem;font-size:.84rem;font-weight:600;cursor:pointer;
+  transition:background .12s;
+}
+.btn-modal-ghost:hover{background:#E8EDF5}
+
+/* ─── Toast ──────────────────────────────────────────────────────── */
+.toast{
+  position:fixed;bottom:1.75rem;left:50%;
+  transform:translateX(-50%) translateY(1.2rem);
+  background:""" + CAP_NAVY + r""";color:#fff;
+  border-radius:.45rem;
+  padding:.65rem 1.4rem;
+  font-size:.84rem;font-weight:500;
+  box-shadow:0 6px 20px rgba(8,18,38,.35);
+  opacity:0;transition:opacity .28s,transform .28s;
+  pointer-events:none;white-space:nowrap;z-index:2000;
+}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ─── Misc ───────────────────────────────────────────────────────── */
 a{color:""" + CAP_BLUE + r""";text-decoration:none}
 a:hover{text-decoration:underline}
-code{background:""" + CAP_LIGHT + r""";border:1px solid """ + CAP_BORDER + r""";padding:.1rem .3rem;border-radius:.2rem;font-size:.75rem;color:#334E68}
-.footer{margin-top:2.5rem;text-align:center;font-size:.72rem;color:#9AAFBF}
+code{
+  background:#EEF2F8;border:1px solid """ + CAP_BORDER + r""";
+  padding:.1rem .35rem;border-radius:.25rem;
+  font-size:.77rem;color:#334E68;
+}
+.footer{margin-top:3rem;text-align:center;font-size:.74rem;color:#AAC0CC}
+
+/* ─── Drag and drop ─────────────────────────────────────────────── */
+
+/* Card being dragged */
+.eng-card[draggable=true]{cursor:grab}
+.eng-card[draggable=true]:active{cursor:grabbing}
+.eng-card.dragging{
+  opacity:.35;
+  transform:scale(.97);
+  box-shadow:none!important;
+  pointer-events:none;
+}
+
+/* Drag ghost clone */
+#drag-ghost{
+  position:fixed;
+  pointer-events:none;
+  z-index:9000;
+  opacity:.92;
+  transform:rotate(2deg) scale(1.03);
+  box-shadow:0 12px 32px rgba(14,30,56,.22);
+  border-radius:.45rem;
+  transition:none;
+  width:var(--ghost-w,200px);
+  background:#fff;
+  border:1.5px solid """ + CAP_BLUE + r""";
+  padding:.6rem .7rem .55rem;
+  font-family:'Segoe UI',Inter,system-ui,Arial,sans-serif;
+  font-size:15px;
+}
+
+/* Drop-target lane highlight */
+.lane.drop-target{
+  background:rgba(0,112,173,.06);
+  border-color:""" + CAP_BLUE + r""";
+  box-shadow:0 0 0 2px rgba(0,112,173,.2);
+}
+.lane.drop-target .lane-cards{
+  outline:2px dashed rgba(0,112,173,.35);
+  outline-offset:3px;
+  border-radius:.35rem;
+  min-height:48px;
+}
+.lane.drop-blocked{
+  background:rgba(180,30,30,.04);
+  border-color:#D94040;
+  box-shadow:0 0 0 2px rgba(217,64,64,.18);
+}
+.lane.drop-blocked .lane-cards{
+  outline:2px dashed rgba(217,64,64,.3);
+  outline-offset:3px;
+  border-radius:.35rem;
+}
+/* Drop indicator line inside lane */
+.drop-indicator{
+  height:3px;background:""" + CAP_BLUE + r""";
+  border-radius:2px;margin:.2rem 0;
+  animation:pulse-indicator .8s ease-in-out infinite;
+}
+@keyframes pulse-indicator{0%,100%{opacity:.6}50%{opacity:1}}
+
+/* ─── Card processing state ──────────────────────────────────────── */
+.eng-card.processing{
+  pointer-events:none;
+  border-color:""" + CAP_BLUE + r"""!important;
+  box-shadow:0 0 0 2px rgba(0,112,173,.18)!important;
+  background:#EEF6FF!important;
+}
+.card-processing-overlay{
+  display:flex;align-items:center;gap:.5rem;
+  background:rgba(238,246,255,.92);
+  border-radius:.35rem;
+  padding:.4rem .55rem;
+  margin-top:.35rem;
+  font-size:.74rem;font-weight:600;color:""" + CAP_BLUE + r""";
+}
+.spinner{
+  width:14px;height:14px;flex-shrink:0;
+  border:2px solid rgba(0,112,173,.25);
+  border-top-color:""" + CAP_BLUE + r""";
+  border-radius:50%;
+  animation:spin .75s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.processing-steps{
+  display:flex;flex-direction:column;gap:.1rem;
+  margin-top:.25rem;
+  padding-left:.55rem;
+}
+.processing-step{
+  font-size:.67rem;color:#7AA8CC;
+  display:flex;align-items:center;gap:.3rem;
+}
+.processing-step.done{color:#1E9160}
+.processing-step.active{color:""" + CAP_BLUE + r""";font-weight:600}
+
+/* ─── Card completion / result-ready state ───────────────────────── */
+.eng-card.result-ready{
+  border-color:#1E9160!important;
+  box-shadow:0 0 0 2px rgba(30,145,96,.2),0 4px 14px rgba(30,145,96,.12)!important;
+  animation:result-pulse 2s ease-in-out 3;
+}
+@keyframes result-pulse{
+  0%,100%{box-shadow:0 0 0 2px rgba(30,145,96,.2),0 4px 14px rgba(30,145,96,.12)}
+  50%{box-shadow:0 0 0 4px rgba(30,145,96,.3),0 6px 20px rgba(30,145,96,.2)}
+}
+.card-result-cta{
+  display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(135deg,#E8F7EE,#D4F0E2);
+  border:1.5px solid #8ED4AC;
+  border-radius:.35rem;
+  padding:.32rem .5rem;
+  margin-top:.3rem;
+  font-size:.73rem;font-weight:700;color:#145E32;
+  cursor:pointer;
+  gap:.3rem;
+}
+.card-result-cta:hover{background:linear-gradient(135deg,#D4F0E2,#C0E8D4)}
+.result-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:#1E9160;flex-shrink:0;
+  animation:blink-dot 1.4s ease-in-out 6;
+}
+@keyframes blink-dot{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* ─── HITL confirm modal ─────────────────────────────────────────── */
+.hitl-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(8,18,38,.55);
+  backdrop-filter:blur(4px);
+  z-index:1100;
+  align-items:center;justify-content:center;
+}
+.hitl-overlay.open{display:flex}
+.hitl-modal{
+  background:#fff;
+  border-radius:.7rem;
+  box-shadow:0 20px 60px rgba(8,18,38,.3);
+  width:min(520px,96vw);
+  padding:0;
+  animation:modal-in .2s ease;
+  overflow:hidden;
+}
+.hitl-header{
+  padding:1.25rem 1.4rem .9rem;
+  border-bottom:1.5px solid """ + CAP_BORDER + r""";
+  display:flex;align-items:flex-start;gap:.9rem;
+}
+.hitl-agent-icon{
+  width:40px;height:40px;border-radius:.45rem;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;flex-shrink:0;
+  background:""" + CAP_LIGHT + r""";
+  border:1.5px solid """ + CAP_BORDER + r""";
+}
+.hitl-header-text{flex:1}
+.hitl-title{font-size:.95rem;font-weight:700;color:""" + CAP_NAVY + r""";margin-bottom:.15rem}
+.hitl-subtitle{font-size:.77rem;color:#7A96B0;line-height:1.45}
+.hitl-body{padding:1rem 1.4rem}
+.hitl-engagement{
+  background:#F4F7FB;border:1px solid """ + CAP_BORDER + r""";
+  border-radius:.4rem;padding:.65rem .85rem;margin-bottom:.9rem;
+}
+.hitl-eng-id{font-size:.65rem;color:#AAC0CC;letter-spacing:.04em;text-transform:uppercase;margin-bottom:.18rem}
+.hitl-eng-name{font-size:.9rem;font-weight:600;color:""" + CAP_NAVY + r"""}
+.hitl-desc{font-size:.82rem;color:#334E68;line-height:1.6;margin-bottom:1rem}
+.hitl-what{
+  background:#EEF5FF;border:1.5px solid #C2D9F0;
+  border-radius:.4rem;padding:.55rem .8rem;
+  margin-bottom:1.1rem;
+}
+.hitl-what-label{font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#8BAABF;margin-bottom:.3rem}
+.hitl-what-steps{display:flex;flex-direction:column;gap:.22rem}
+.hitl-what-step{font-size:.78rem;color:#2C4260;display:flex;align-items:baseline;gap:.4rem}
+.hitl-what-step::before{content:'→';color:""" + CAP_BLUE + r""";font-size:.7rem;flex-shrink:0}
+.hitl-actions{
+  display:flex;gap:.75rem;
+  padding:.9rem 1.4rem 1.1rem;
+  border-top:1.5px solid """ + CAP_BORDER + r""";
+}
+.btn-hitl-confirm{
+  flex:1;padding:.6rem .9rem;
+  background:""" + CAP_BLUE + r""";color:#fff;
+  border:none;border-radius:.4rem;
+  font-size:.84rem;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:.4rem;
+  transition:background .15s,box-shadow .15s,transform .1s;
+  letter-spacing:.01em;
+}
+.btn-hitl-confirm:hover{
+  background:#005C8F;
+  box-shadow:0 3px 10px rgba(0,92,143,.3);
+  transform:translateY(-1px);
+}
+.btn-hitl-cancel{
+  padding:.6rem 1rem;
+  background:#F4F7FB;color:#607A96;
+  border:1.5px solid """ + CAP_BORDER + r""";
+  border-radius:.4rem;
+  font-size:.84rem;font-weight:600;cursor:pointer;
+  transition:background .12s;
+}
+.btn-hitl-cancel:hover{background:#E8EDF5}
+
+/* ─── Responsiveness ──────────────────────────────────────────────── */
+
+/* Wide — 1400 px + : give board more room */
+@media(min-width:1400px){
+  .pipeline{grid-template-columns:repeat(7,minmax(170px,1fr))}
+  .workspace{grid-template-columns:1fr 430px}
+}
+
+/* Medium — below 1200px: tighten side panel */
+@media(max-width:1199px){
+  .workspace{grid-template-columns:1fr 360px;gap:1rem}
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+}
+
+/* Tablet — below 900px: stack workspace */
+@media(max-width:899px){
+  .page{padding:1.25rem 1.25rem 4rem}
+  .workspace{
+    grid-template-columns:1fr;
+    display:flex;flex-direction:column;gap:1.25rem;
+  }
+  .detail-panel{
+    position:static;max-height:none;
+    min-height:320px;
+  }
+  .pipeline{grid-template-columns:repeat(7,minmax(150px,1fr));min-width:1050px}
+}
+
+/* Small — below 600px */
+@media(max-width:599px){
+  .topbar{padding:.6rem 1rem}
+  .topbar-title{display:none}
+  .page{padding:1rem 1rem 4rem}
+  .kpi-row{grid-template-columns:repeat(2,1fr);gap:.65rem}
+  .kpi-value{font-size:1.75rem}
+  .intake-form{flex-direction:column}
+  .drop-zone{min-width:0}
+  .board-scroll{margin:0 -1rem;padding:0 1rem .75rem}
+  .pipeline{grid-template-columns:repeat(7,minmax(138px,1fr));min-width:966px}
+  .detail-name{font-size:.95rem}
+}
 </style>
 </head>
 <body>
@@ -633,8 +1275,8 @@ code{background:""" + CAP_LIGHT + r""";border:1px solid """ + CAP_BORDER + r""";
 <div class="topbar">
   <div class="topbar-left">
     <span class="topbar-brand">Contoso Consulting</span>
-    <span class="topbar-sep">|</span>
-    <span class="topbar-title">Outcome Readiness Review &middot; SoW Pipeline</span>
+    <span class="topbar-sep">·</span>
+    <span class="topbar-title">Outcome Readiness Review &mdash; SoW Pipeline</span>
   </div>
   <div class="topbar-right">
     <span class="demo-badge">Demo</span>
@@ -649,27 +1291,27 @@ code{background:""" + CAP_LIGHT + r""";border:1px solid """ + CAP_BORDER + r""";
   <div class="kpi-tile" style="--kpi-accent:%%BLUE%%">
     <div class="kpi-label">Engagements in scope</div>
     <div class="kpi-value">%%TOTAL_OPPS%%</div>
-    <div class="kpi-sub">unique SoWs in the pipeline</div>
+    <div class="kpi-sub">Unique SoWs in the pipeline</div>
   </div>
   <div class="kpi-tile" style="--kpi-accent:%%COVERAGE_COLOR%%">
-    <div class="kpi-label">Validated review coverage</div>
+    <div class="kpi-label">Validated coverage</div>
     <div class="kpi-value" style="color:%%COVERAGE_COLOR%%">%%COVERAGE_PCT%%%</div>
     <div class="kpi-sub">%%VALIDATED_CNT%% of %%TOTAL_OPPS%% engagements validated</div>
   </div>
-  <div class="kpi-tile" style="--kpi-accent:#2D9E6B">
+  <div class="kpi-tile" style="--kpi-accent:#1E9160">
     <div class="kpi-label">Analyst hours saved</div>
-    <div class="kpi-value" style="color:#2D9E6B">%%TOTAL_HOURS%%&thinsp;h</div>
-    <div class="kpi-sub">across %%TOTAL_RUNS%% agent runs</div>
+    <div class="kpi-value" style="color:#1E9160">%%TOTAL_HOURS%%&thinsp;h</div>
+    <div class="kpi-sub">Across %%TOTAL_RUNS%% agent runs</div>
   </div>
-  <div class="kpi-tile" style="--kpi-accent:#7B52AB">
-    <div class="kpi-label">Outcome-ready candidates</div>
-    <div class="kpi-value" style="color:#7B52AB">%%OUTCOME_READY%%</div>
-    <div class="kpi-sub">engagements with Recommend verdict</div>
+  <div class="kpi-tile" style="--kpi-accent:#6B42A8">
+    <div class="kpi-label">Outcome-ready</div>
+    <div class="kpi-value" style="color:#6B42A8">%%OUTCOME_READY%%</div>
+    <div class="kpi-sub">Engagements with Recommend verdict</div>
   </div>
 </div>
 
 <div class="intake-panel">
-  <div class="section-header" style="margin-bottom:.65rem">
+  <div class="section-header" style="margin-bottom:.7rem">
     <span class="section-title">Submit a SoW for AI Review</span>
   </div>
   <div class="intake-form">
@@ -683,7 +1325,7 @@ code{background:""" + CAP_LIGHT + r""";border:1px solid """ + CAP_BORDER + r""";
     </div>
     <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
       <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt" onchange="onFileChosen(this)"/>
-      <span id="drop-label">&#128196; Drop PDF / DOCX / TXT, or click to browse</span>
+      <span id="drop-label">&#128196;&ensp;Drop PDF / DOCX / TXT &mdash; or click to browse</span>
     </div>
     <button class="btn-scan" id="upload-btn" onclick="submitUpload()" disabled>Run AI Review &rarr;</button>
   </div>
@@ -694,7 +1336,7 @@ code{background:""" + CAP_LIGHT + r""";border:1px solid """ + CAP_BORDER + r""";
   <div class="board-col">
     <div class="section-header">
       <span class="section-title">Review Pipeline</span>
-      <span style="font-size:.72rem;color:#9AAFBF">Click any card to open detail &rarr;</span>
+      <span style="font-size:.72rem;color:#AAC0CC">Click any card to open the detail view &rarr;</span>
     </div>
     <div class="board-scroll">
       <div class="pipeline">%%BOARD_HTML%%</div>
@@ -706,7 +1348,7 @@ code{background:""" + CAP_LIGHT + r""";border:1px solid """ + CAP_BORDER + r""";
       <div class="detail-empty-icon">&#128269;</div>
       <div class="detail-empty-text">Select an engagement card<br>to view the full assessment</div>
     </div>
-    <div class="detail-content" id="detail-content" style="display:none"></div>
+    <div id="detail-content" style="display:none;flex:1;display:flex;flex-direction:column"></div>
   </div>
 </div>
 
@@ -728,7 +1370,7 @@ code{background:""" + CAP_LIGHT + r""";border:1px solid """ + CAP_BORDER + r""";
     </div>
     <div id="modal-body"></div>
     <div class="modal-actions">
-      <button class="btn-send" onclick="simulateSend()">&#9993; Send to Engagement Manager</button>
+      <button class="btn-send" onclick="simulateSend()">&#9993;&ensp;Send to Engagement Manager</button>
       <button class="btn-modal-ghost" onclick="closeModal()">Close</button>
     </div>
   </div>
@@ -736,16 +1378,397 @@ code{background:""" + CAP_LIGHT + r""";border:1px solid """ + CAP_BORDER + r""";
 
 <div class="toast" id="toast"></div>
 
+<!-- HITL Confirmation Modal -->
+<div class="hitl-overlay" id="hitl-overlay">
+  <div class="hitl-modal" id="hitl-modal">
+    <div class="hitl-header">
+      <div class="hitl-agent-icon" id="hitl-agent-icon">🤖</div>
+      <div class="hitl-header-text">
+        <div class="hitl-title" id="hitl-title">Confirm Agent Action</div>
+        <div class="hitl-subtitle" id="hitl-subtitle">Review the action below before the agent proceeds.</div>
+      </div>
+    </div>
+    <div class="hitl-body">
+      <div class="hitl-engagement">
+        <div class="hitl-eng-id" id="hitl-eng-id"></div>
+        <div class="hitl-eng-name" id="hitl-eng-name"></div>
+      </div>
+      <div class="hitl-desc" id="hitl-desc"></div>
+      <div class="hitl-what">
+        <div class="hitl-what-label">What the agent will do</div>
+        <div class="hitl-what-steps" id="hitl-what-steps"></div>
+      </div>
+    </div>
+    <div class="hitl-actions">
+      <button class="btn-hitl-confirm" id="hitl-confirm-btn">&#9654;&ensp;Approve &amp; Run Agent</button>
+      <button class="btn-hitl-cancel" id="hitl-cancel-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const DETAILS = %%DETAILS_JSON%%;
 const REC_CFG = {
-  recommend:  {bg:'#E8F7EE',color:'#1A6B3C',border:'#A8D5B5',icon:'✓',label:'Recommend'},
-  reconsider: {bg:'#FEF3E2',color:'#92530C',border:'#F6C87A',icon:'◐',label:'Reconsider'},
-  rule_out:   {bg:'#FDECEA',color:'#9B1C1C',border:'#F5AAAA',icon:'✕',label:'Rule Out'},
+  recommend:  {bg:'#E6F6ED',color:'#145E32',border:'#8ED4AC',icon:'✓',label:'Recommend'},
+  reconsider: {bg:'#FEF4E2',color:'#8A4D0A',border:'#EDD080',icon:'◐',label:'Reconsider'},
+  rule_out:   {bg:'#FDECEA',color:'#8C1818',border:'#ECA8A8',icon:'✕',label:'Rule Out'},
 };
 let activeOpp = null;
 
-// Upload
+// ─── Lane interaction model ──────────────────────────────────────────────────
+// behavior:
+//   'direct'       – move card immediately, no agent, no confirm
+//   'confirm'      – ask user to confirm, no agent call
+//   'agent-scan'   – HITL confirm → call /scan endpoint → simulated processing
+//   'agent-review' – HITL confirm → call /advance to under_review → simulated review
+//   'blocked'      – cannot drop here
+const LANE_CONFIG = {
+  intake:              { behavior:'direct',       accepts: ['needs_clarification','rejected'] },
+  scanned:             { behavior:'agent-scan',   accepts: ['intake','under_review','needs_clarification'] },
+  under_review:        { behavior:'agent-review', accepts: ['scanned','needs_clarification'] },
+  needs_clarification: { behavior:'direct',       accepts: ['under_review','scanned'] },
+  validated:           { behavior:'confirm',      accepts: ['under_review','scanned'] },
+  rejected:            { behavior:'confirm',      accepts: ['under_review','scanned','needs_clarification'] },
+  archived:            { behavior:'direct',       accepts: ['validated','rejected'] },
+};
+
+const AGENT_INFO = {
+  'agent-scan': {
+    icon: '🔍',
+    title: 'Authorise Scan Agent',
+    subtitle: 'The Scan Agent will read the SoW and return a structured verdict.',
+    desc: (engName) => `The SoW for <strong>${engName}</strong> will be submitted to the Scan Agent for automated outcome-readiness analysis. This will take approximately 30–60 seconds.`,
+    steps: [
+      'Parse and index the Statement of Work',
+      'Identify measurable outcomes and KPIs',
+      'Assess commercial model suitability',
+      'Return a structured recommendation verdict',
+    ],
+    confirmLabel: '🔍  Run Scan Agent',
+    processingLabel: 'Scanning SoW…',
+    processingSteps: ['Reading SoW…','Identifying outcomes…','Assessing KPIs…','Generating verdict…'],
+    resultLabel: 'Assessment ready',
+  },
+  'agent-review': {
+    icon: '📋',
+    title: 'Authorise Review Agent',
+    subtitle: 'The Review Agent will perform a deep commercial analysis.',
+    desc: (engName) => `The engagement <strong>${engName}</strong> will be moved to Under Review and the Review Agent will conduct a detailed commercial assessment.`,
+    steps: [
+      'Review prior scan verdict and evidence',
+      'Assess commercial model viability in depth',
+      'Evaluate KPI measurability and baseline availability',
+      'Produce a reviewed recommendation and next-action plan',
+    ],
+    confirmLabel: '📋  Start Review Agent',
+    processingLabel: 'Reviewing engagement…',
+    processingSteps: ['Loading scan results…','Assessing commercial model…','Evaluating KPI gaps…','Writing recommendation…'],
+    resultLabel: 'Review ready',
+  },
+  'confirm': {
+    icon: '✓',
+    title: 'Confirm Stage Change',
+    subtitle: 'No agent will run — this is a manual pipeline decision.',
+    desc: (engName, targetLabel) => `You are about to move <strong>${engName}</strong> to <strong>${targetLabel}</strong>. This is a human decision — no agent will run automatically.`,
+    steps: [
+      'Record stage change in the pipeline',
+      'Update engagement status for portfolio reporting',
+    ],
+    confirmLabel: '✓  Confirm Move',
+    processingLabel: null,
+    processingSteps: [],
+    resultLabel: null,
+  },
+};
+
+// ─── Drag state ─────────────────────────────────────────────────────────────
+let dragState = null; // { opp, fromLane, card, ghostEl }
+
+function createGhost(card) {
+  const rect = card.getBoundingClientRect();
+  const ghost = document.createElement('div');
+  ghost.id = 'drag-ghost';
+  ghost.style.setProperty('--ghost-w', rect.width + 'px');
+  // Copy inner content
+  ghost.innerHTML = card.innerHTML;
+  // Remove action buttons from ghost
+  const acts = ghost.querySelector('.card-actions');
+  if (acts) acts.remove();
+  document.body.appendChild(ghost);
+  return ghost;
+}
+
+document.addEventListener('dragstart', e => {
+  const card = e.target.closest('.eng-card[data-opp]');
+  if (!card) return;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', card.dataset.opp);
+  // Tiny transparent drag image so we control the ghost entirely
+  const blank = document.createElement('canvas');
+  blank.width = blank.height = 1;
+  e.dataTransfer.setDragImage(blank, 0, 0);
+  dragState = { opp: card.dataset.opp, fromLane: card.dataset.stage, card };
+  // Defer so the browser captures the original state first
+  requestAnimationFrame(() => card.classList.add('dragging'));
+  // Create floating ghost
+  const ghost = createGhost(card);
+  ghost.style.left = (e.clientX - 10) + 'px';
+  ghost.style.top  = (e.clientY - 14) + 'px';
+  dragState.ghostEl = ghost;
+});
+
+document.addEventListener('dragover', e => {
+  e.preventDefault();
+  if (!dragState) return;
+  // Move ghost
+  if (dragState.ghostEl) {
+    dragState.ghostEl.style.left = (e.clientX - 10) + 'px';
+    dragState.ghostEl.style.top  = (e.clientY - 14) + 'px';
+  }
+  // Highlight target lane
+  const targetLane = e.target.closest('[data-lane]');
+  document.querySelectorAll('.lane').forEach(l => {
+    l.classList.remove('drop-target','drop-blocked');
+  });
+  if (targetLane) {
+    const laneName = targetLane.dataset.lane;
+    if (laneName === dragState.fromLane) return;
+    const cfg = LANE_CONFIG[laneName];
+    const lane = targetLane.closest('.lane') || targetLane;
+    if (cfg && cfg.accepts.includes(dragState.fromLane)) {
+      lane.classList.add('drop-target');
+      e.dataTransfer.dropEffect = 'move';
+    } else {
+      lane.classList.add('drop-blocked');
+      e.dataTransfer.dropEffect = 'none';
+    }
+  }
+});
+
+document.addEventListener('dragleave', e => {
+  // Only clear if we've left the pipeline entirely
+  const related = e.relatedTarget;
+  if (!related || !related.closest('.pipeline')) {
+    document.querySelectorAll('.lane').forEach(l => l.classList.remove('drop-target','drop-blocked'));
+  }
+});
+
+document.addEventListener('dragend', e => {
+  if (!dragState) return;
+  dragState.card.classList.remove('dragging');
+  if (dragState.ghostEl) dragState.ghostEl.remove();
+  document.querySelectorAll('.lane').forEach(l => l.classList.remove('drop-target','drop-blocked'));
+  dragState = null;
+});
+
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  if (!dragState) return;
+  const targetLane = e.target.closest('[data-lane]');
+  if (!targetLane) return;
+  const toLane = targetLane.dataset.lane;
+  if (toLane === dragState.fromLane) return;
+  const cfg = LANE_CONFIG[toLane];
+  if (!cfg || !cfg.accepts.includes(dragState.fromLane)) {
+    showToast('⚠ Cannot move to that lane from here');
+    return;
+  }
+  const { opp, fromLane } = dragState;
+  handleDrop(opp, fromLane, toLane, cfg.behavior);
+});
+
+// ─── Drop routing ────────────────────────────────────────────────────────────
+const LANE_LABELS = {
+  intake:'Intake', scanned:'Scanned', under_review:'Under Review',
+  needs_clarification:'Needs Clarification', validated:'Validated',
+  rejected:'Rejected', archived:'Archived',
+};
+
+function handleDrop(opp, fromLane, toLane, behavior) {
+  const d = DETAILS[opp] || {};
+  const engName = d.engagement_name || opp;
+  if (behavior === 'direct') {
+    doAdvance(opp, toLane, null);
+  } else if (behavior === 'agent-scan' || behavior === 'agent-review' || behavior === 'confirm') {
+    openHitl(opp, fromLane, toLane, behavior, engName);
+  }
+}
+
+// ─── HITL Modal ──────────────────────────────────────────────────────────────
+let hitlPending = null;
+
+function openHitl(opp, fromLane, toLane, behavior, engName) {
+  hitlPending = { opp, fromLane, toLane, behavior };
+  const info = behavior === 'confirm'
+    ? { ...AGENT_INFO.confirm,
+        desc: () => AGENT_INFO.confirm.desc(engName, LANE_LABELS[toLane]),
+        steps: AGENT_INFO.confirm.steps }
+    : AGENT_INFO[behavior];
+
+  document.getElementById('hitl-agent-icon').textContent = info.icon;
+  document.getElementById('hitl-title').textContent = info.title;
+  document.getElementById('hitl-subtitle').textContent = info.subtitle;
+  document.getElementById('hitl-eng-id').textContent = opp;
+  document.getElementById('hitl-eng-name').textContent = engName;
+  document.getElementById('hitl-desc').innerHTML = info.desc(engName, LANE_LABELS[toLane]);
+  document.getElementById('hitl-what-steps').innerHTML =
+    info.steps.map(s=>`<div class="hitl-what-step">${s}</div>`).join('');
+  const confirmBtn = document.getElementById('hitl-confirm-btn');
+  confirmBtn.innerHTML = `${info.confirmLabel}`;
+  document.getElementById('hitl-overlay').classList.add('open');
+}
+
+document.getElementById('hitl-confirm-btn').addEventListener('click', () => {
+  if (!hitlPending) return;
+  document.getElementById('hitl-overlay').classList.remove('open');
+  const { opp, fromLane, toLane, behavior } = hitlPending;
+  hitlPending = null;
+  executeApprovedAction(opp, fromLane, toLane, behavior);
+});
+
+document.getElementById('hitl-cancel-btn').addEventListener('click', () => {
+  document.getElementById('hitl-overlay').classList.remove('open');
+  hitlPending = null;
+  showToast('↩ Move cancelled — card stays in current lane');
+});
+
+document.getElementById('hitl-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('hitl-overlay')) {
+    document.getElementById('hitl-cancel-btn').click();
+  }
+});
+
+// ─── Execute approved action ─────────────────────────────────────────────────
+function executeApprovedAction(opp, fromLane, toLane, behavior) {
+  if (behavior === 'confirm') {
+    doAdvance(opp, toLane, null);
+    return;
+  }
+  if (behavior === 'agent-scan') {
+    // Move to scanned first (so card appears in lane), then simulate agent
+    doAdvance(opp, 'scanned', null, /*silent*/ true);
+    // Check if there's SoW text
+    const card = document.getElementById('card-' + opp);
+    const hasSow = card && card.dataset.hasSow === '1';
+    if (hasSow) {
+      startAgentProcessing(opp, 'agent-scan', () => {
+        doScanCall(opp);
+      });
+    } else {
+      startAgentProcessing(opp, 'agent-scan', null, /*simulate*/true);
+    }
+  } else if (behavior === 'agent-review') {
+    doAdvance(opp, 'under_review', null, /*silent*/ true);
+    startAgentProcessing(opp, 'agent-review', null, /*simulate*/true);
+  }
+}
+
+// ─── Agent processing simulation ─────────────────────────────────────────────
+function startAgentProcessing(opp, agentType, realCallback, simulate) {
+  const card = document.getElementById('card-' + opp);
+  if (!card) return;
+  const info = AGENT_INFO[agentType];
+  if (!info || !info.processingLabel) return;
+
+  // Lock card
+  card.classList.add('processing');
+  // Remove old actions
+  const acts = card.querySelector('.card-actions');
+  if (acts) acts.innerHTML = '';
+
+  // Build processing overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'card-processing-overlay';
+  overlay.innerHTML = `<div class="spinner"></div><span id="proc-label-${opp}">${info.processingLabel}</span>`;
+  card.appendChild(overlay);
+
+  // Step indicators
+  if (info.processingSteps && info.processingSteps.length) {
+    const stepsEl = document.createElement('div');
+    stepsEl.className = 'processing-steps';
+    stepsEl.id = 'proc-steps-' + opp;
+    info.processingSteps.forEach((s, i) => {
+      stepsEl.innerHTML += `<div class="processing-step" id="proc-step-${opp}-${i}">${s}</div>`;
+    });
+    card.appendChild(stepsEl);
+  }
+
+  // Animate steps
+  const steps = info.processingSteps || [];
+  const totalMs = simulate ? (2200 + steps.length * 800) : (steps.length * 900 + 1200);
+  const perStep = Math.floor(totalMs / Math.max(steps.length, 1));
+  steps.forEach((_, i) => {
+    setTimeout(() => {
+      document.querySelectorAll(`#proc-steps-${opp} .processing-step`).forEach((el, j) => {
+        el.classList.remove('active','done');
+        if (j < i) el.classList.add('done'), el.textContent = '✓ ' + steps[j];
+        if (j === i) el.classList.add('active');
+      });
+    }, i * perStep);
+  });
+
+  // Complete
+  setTimeout(() => {
+    if (realCallback) {
+      realCallback();
+    } else {
+      onAgentComplete(opp, agentType, simulate);
+    }
+  }, totalMs);
+}
+
+function onAgentComplete(opp, agentType, simulate) {
+  const card = document.getElementById('card-' + opp);
+  if (!card) return;
+  const info = AGENT_INFO[agentType];
+  // Remove processing UI
+  const overlay = card.querySelector('.card-processing-overlay');
+  if (overlay) overlay.remove();
+  const stepsEl = document.getElementById('proc-steps-' + opp);
+  if (stepsEl) stepsEl.remove();
+  card.classList.remove('processing');
+
+  if (info && info.resultLabel) {
+    card.classList.add('result-ready');
+    // Inject result CTA
+    const cta = document.createElement('div');
+    cta.className = 'card-result-cta';
+    cta.innerHTML = `<div class="result-dot"></div><span>${info.resultLabel}</span><span style="font-size:.65rem;opacity:.7">→ View</span>`;
+    cta.onclick = (e) => { e.stopPropagation(); openDetail(opp); };
+    const acts = card.querySelector('.card-actions');
+    if (acts) acts.prepend(cta);
+    else card.appendChild(cta);
+    showToast(`✓ ${info.resultLabel} for ${opp}`);
+    // Full refresh after short delay to pull in new DB data
+    setTimeout(() => location.reload(), 3500);
+  }
+}
+
+function doScanCall(opp) {
+  fetch('/scan', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({opportunity_id:opp})})
+    .then(r => r.ok ? r.json() : r.text().then(t=>{throw new Error(t);}))
+    .then(() => onAgentComplete(opp, 'agent-scan', false))
+    .catch(err => {
+      // Fall back to simulation completion
+      console.warn('Scan call failed, simulating:', err);
+      onAgentComplete(opp, 'agent-scan', true);
+    });
+}
+
+// ─── Advance helper ──────────────────────────────────────────────────────────
+function doAdvance(opp, stage, btn, silent) {
+  if (btn) { btn.disabled = true; btn.textContent = 'Moving…'; }
+  fetch('/advance', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({opportunity_id:opp,pipeline_status:stage})})
+    .then(r => {
+      if (r.ok) {
+        if (!silent) location.reload();
+      } else {
+        if (btn) { btn.disabled = false; btn.textContent = 'Error — retry'; }
+      }
+    });
+}
+
+// ─── Upload ──────────────────────────────────────────────────────────────────
 const dropZone  = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 const uploadBtn = document.getElementById('upload-btn');
@@ -766,8 +1789,8 @@ function setStatus(msg, cls) { statusEl.textContent = msg; statusEl.className = 
 function submitUpload() {
   const oppId = document.getElementById('opp-id').value.trim();
   const engName = document.getElementById('eng-name').value.trim();
-  if (!oppId)   { setStatus('Please enter an Opportunity ID.', 'error'); return; }
-  if (!engName) { setStatus('Please enter an Engagement name.', 'error'); return; }
+  if (!oppId)      { setStatus('Please enter an Opportunity ID.', 'error'); return; }
+  if (!engName)    { setStatus('Please enter an Engagement name.', 'error'); return; }
   if (!chosenFile) { setStatus('Please choose a file.', 'error'); return; }
   uploadBtn.disabled = true; setStatus('⏳ Scanning with AI agent… (30–60 s)');
   const fd = new FormData();
@@ -781,7 +1804,7 @@ function submitUpload() {
     .catch(e => { setStatus('Network error: '+e,'error'); uploadBtn.disabled=false; });
 }
 
-// Board actions
+// ─── Board button actions (kept for backwards compat with card buttons) ──────
 function scan(e, opp) {
   e.stopPropagation();
   const card = document.getElementById('card-'+opp);
@@ -799,89 +1822,92 @@ function advance(e, oppId, nextStage) {
     .then(r=>{ if(r.ok) location.reload(); else{btn.disabled=false;btn.textContent='Error — retry';} });
 }
 
-// Detail panel
+// ─── Detail panel ─────────────────────────────────────────────────────────────
 function openDetail(opp) {
   activeOpp = opp;
   const d = DETAILS[opp]; if (!d) return;
   document.querySelectorAll('.eng-card').forEach(c=>c.classList.remove('selected'));
   const card = document.getElementById('card-'+opp); if(card) card.classList.add('selected');
   document.getElementById('detail-empty').style.display = 'none';
-  document.getElementById('detail-content').style.display = 'block';
+  const dc = document.getElementById('detail-content');
+  dc.style.display = 'flex';
 
-  const cfg = REC_CFG[d.recommendation] || {bg:'#F0F4F8',color:'#5A7A99',border:'#D1DCE8',icon:'·',label:d.rec_label||'—'};
+  const cfg = REC_CFG[d.recommendation] || {bg:'#EEF2F8',color:'#607A96',border:'#C8D4E0',icon:'·',label:d.rec_label||'—'};
   const mgr = d.manager || {};
-  const ini = mgr.name ? mgr.name.split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase() : '??';
+  const ini = mgr.name ? mgr.name.split(' ').filter(Boolean).map(p=>p[0]).join('').slice(0,2).toUpperCase() : '??';
 
   const outHtml = (d.detected_outcomes && d.detected_outcomes.length)
-    ? d.detected_outcomes.map(o=>`<div class="detail-list-item">✓ ${o}</div>`).join('')
-    : '<div style="font-size:.75rem;color:#9AAFBF">None detected</div>';
+    ? d.detected_outcomes.map(o=>`<div class="detail-list-item">${o}</div>`).join('')
+    : '<div style="font-size:.78rem;color:#AABFCC;padding:.2rem 0">None detected</div>';
 
   const kpiHtml = (d.missing_kpis && d.missing_kpis.length)
-    ? d.missing_kpis.map(k=>`<div class="detail-kpi-item">⚠ ${k}</div>`).join('')
-    : '<div style="font-size:.75rem;color:#2D9E6B">No gaps identified ✓</div>';
+    ? d.missing_kpis.map(k=>`<div class="detail-kpi-item">${k}</div>`).join('')
+    : '<div style="font-size:.78rem;color:#1E9160;padding:.2rem 0">No gaps identified ✓</div>';
 
   const histHtml = (d.run_history && d.run_history.length) ? d.run_history.map(r=>{
     const rc = REC_CFG[r.recommendation]||{};
-    const badge = r.recommendation?`<span style="background:${rc.bg||'#eee'};color:${rc.color||'#666'};border:1px solid ${rc.border||'#ccc'};padding:.05rem .3rem;border-radius:.2rem;font-size:.62rem;font-weight:700">${rc.icon||'·'} ${rc.label||r.recommendation}</span>`:'';
+    const badge = r.recommendation?`<span style="background:${rc.bg||'#eee'};color:${rc.color||'#666'};border:1px solid ${rc.border||'#ccc'};padding:.06rem .35rem;border-radius:.25rem;font-size:.64rem;font-weight:700">${rc.icon||'·'} ${rc.label||r.recommendation}</span>`:'';
     const ts = r.created_at?r.created_at.slice(0,16).replace('T',' '):'';
-    const hrs = r.hours_saved?r.hours_saved.toFixed(1)+' h':'';
-    return `<div class="run-history-item">${badge}<span style="font-size:.62rem;color:#9AAFBF">${r.agent_name||''}</span><span style="flex:1"></span>${hrs?`<span class="card-hours">${hrs}</span>`:''}<span class="run-ts">${ts}</span></div>`;
-  }).join('') : '<div style="font-size:.7rem;color:#9AAFBF">No run history</div>';
+    const hrs = r.hours_saved?`<span style="font-size:.68rem;color:#8BAABF;font-variant-numeric:tabular-nums">${r.hours_saved.toFixed(1)} h</span>`:'';
+    return `<div class="run-history-item">${badge}<span style="font-size:.64rem;color:#AABFCC">${r.agent_name||''}</span><span style="flex:1"></span>${hrs}<span class="run-ts">${ts}</span></div>`;
+  }).join('') : '<div style="font-size:.74rem;color:#AABFCC">No run history</div>';
 
-  document.getElementById('detail-content').innerHTML = `
-    <div class="detail-header">
+  dc.innerHTML = `
+    <div class="detail-top">
       <div class="detail-opp">${d.opportunity_id}</div>
       <div class="detail-name">${d.engagement_name}</div>
       <div class="detail-verdict-row">
-        <span style="background:${cfg.bg};color:${cfg.color};border:1px solid ${cfg.border};padding:.22rem .65rem;border-radius:.3rem;font-size:.75rem;font-weight:700">${cfg.icon} ${cfg.label}</span>
-        <span class="detail-hours-badge">⏱ ${(d.hours_saved||0).toFixed(1)} h saved</span>
+        <span class="detail-verdict-badge" style="background:${cfg.bg};color:${cfg.color};border:1.5px solid ${cfg.border}">${cfg.icon}&ensp;${cfg.label}</span>
+        <span class="detail-hours-badge">&#9203;&ensp;${(d.hours_saved||0).toFixed(1)}&thinsp;h analyst time saved</span>
       </div>
     </div>
-    <div class="detail-section">
-      <div class="detail-section-title">Executive Summary</div>
-      <div class="detail-body">${d.summary||'No summary available.'}</div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-title">Detected Outcomes</div>
-      <div class="detail-list">${outHtml}</div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-title">KPI / Measurement Gaps</div>
-      <div class="detail-list">${kpiHtml}</div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-title">Recommended Commercial Direction</div>
-      <div class="detail-direction">${d.commercial_direction}</div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-title">Next Action</div>
-      <div class="detail-action-box">${d.next_action}</div>
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-title">Engagement Manager</div>
-      <div class="mgr-card">
-        <div class="mgr-avatar-lg">${ini}</div>
-        <div class="mgr-info">
-          <div class="mgr-name">${mgr.name||'—'}</div>
-          <div class="mgr-role">${mgr.title||''}</div>
-          <div class="mgr-email">${mgr.email||''}</div>
+    <div class="detail-body-wrap">
+      <div class="ds">
+        <div class="ds-label">Executive Summary</div>
+        <div class="ds-summary">${d.summary||'No summary available.'}</div>
+      </div>
+      <div class="ds">
+        <div class="ds-label">Detected Outcomes</div>
+        <div class="detail-list">${outHtml}</div>
+      </div>
+      <div class="ds">
+        <div class="ds-label">KPI &amp; Measurement Gaps</div>
+        <div class="detail-list">${kpiHtml}</div>
+      </div>
+      <div class="ds">
+        <div class="ds-label">Recommended Commercial Direction</div>
+        <div class="detail-direction">${d.commercial_direction}</div>
+      </div>
+      <div class="ds">
+        <div class="ds-label">Next Action</div>
+        <div class="detail-action-box">${d.next_action}</div>
+      </div>
+      <div class="ds">
+        <div class="ds-label">Engagement Manager</div>
+        <div class="mgr-card">
+          <div class="mgr-avatar-lg">${ini}</div>
+          <div class="mgr-info">
+            <div class="mgr-name">${mgr.name||'—'}</div>
+            <div class="mgr-role">${mgr.title||''}</div>
+            <div class="mgr-email">${mgr.email||''}</div>
+          </div>
         </div>
+        <button class="btn-activate" onclick="openModal('${opp}')">&#9993;&ensp;Send Instructions to ${(mgr.name||'').split(' ')[0]||'Manager'}</button>
       </div>
-      <button class="btn-activate" onclick="openModal('${opp}')">&#9993; Send Instructions to ${(mgr.name||'').split(' ')[0]||'Manager'}</button>
-    </div>
-    <div class="detail-section">
-      <div class="detail-section-title">Run History</div>
-      ${histHtml}
+      <div class="ds">
+        <div class="ds-label">Run History</div>
+        ${histHtml}
+      </div>
     </div>`;
 }
 
-// Activation modal
+// ─── Activation modal ────────────────────────────────────────────────────────
 function openModal(opp) {
   const d = DETAILS[opp]; if (!d) return;
   const mgr = d.manager || {};
   const cfg = REC_CFG[d.recommendation] || {};
-  document.getElementById('modal-title').textContent = `Instruction Package · ${mgr.name||'Engagement Manager'}`;
-  document.getElementById('modal-subtitle').textContent = `${d.engagement_name} · ${d.opportunity_id}`;
+  document.getElementById('modal-title').textContent = `Instruction Package \u00b7 ${mgr.name||'Engagement Manager'}`;
+  document.getElementById('modal-subtitle').textContent = `${d.engagement_name} \u00b7 ${d.opportunity_id}`;
   const kpiList = (d.missing_kpis && d.missing_kpis.length)
     ? '<ul>'+d.missing_kpis.map(k=>`<li>${k}</li>`).join('')+'</ul>'
     : '<p>No KPI gaps identified — the SoW has sufficient measurement detail.</p>';
@@ -937,6 +1963,8 @@ function simulateSend() {
   const d = DETAILS[activeOpp]||{}; const mgr = d.manager||{};
   showToast('✓ Instructions sent to ' + (mgr.name||'Engagement Manager'));
 }
+
+// ─── Toast ───────────────────────────────────────────────────────────────────
 function showToast(msg) {
   const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),3500);
