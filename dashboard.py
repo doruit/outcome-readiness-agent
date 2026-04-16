@@ -333,13 +333,17 @@ def card_html(row: dict) -> str:
     has_sow = bool((row.get("sow_text") or "").strip())
 
     if is_intake:
-        action  = (f'<button onclick="scan(event,\'{opp}\')" class="card-btn btn-primary">Run AI Review →</button>'
-                   if has_sow else
-                   '<div class="card-pending">⏳ Upload SoW to scan</div>')
+        sow_pill = ('<span class="sow-status sow-attached">&#10003;&ensp;SoW attached</span>'
+                    if has_sow else
+                    '<span class="sow-status sow-missing">&#9711;&ensp;No SoW attached</span>')
+        action = (f'<button onclick="scan(event,\'{opp}\')" class="card-btn btn-primary">Run AI Review \u2192</button>'
+                  if has_sow else
+                  f'<button onclick="event.stopPropagation();openDetail(\'{opp}\')" class="card-btn btn-outline">Attach SoW \u2192</button>')
         return f'''<div class="eng-card stage-intake" draggable="true" onclick="openDetail('{opp}')" id="card-{opp}" data-opp="{opp}" data-stage="intake" data-has-sow="{'1' if has_sow else '0'}">
   <div class="card-opp">{opp}</div>
   <div class="card-name">{name}</div>
   <div class="card-mgr"><span class="mgr-avatar">{mgr_ini}</span>{mgr.get("name","")}</div>
+  {sow_pill}
   <div class="card-actions" onclick="event.stopPropagation()">{action}</div>
 </div>'''
 
@@ -403,6 +407,7 @@ def build_detail_payload(row: dict, run_history: dict) -> dict:
         "opportunity_id":            opp,
         "engagement_name":           row.get("engagement_name", ""),
         "stage":                     stage,
+        "has_sow":                   bool((row.get("sow_text") or "").strip()),
         "recommendation":            rec,
         "rec_label":                 cfg["label"],
         "rec_icon":                  cfg["icon"],
@@ -839,6 +844,22 @@ body{
   letter-spacing:0;
 }
 .card-actions{display:flex;flex-direction:column;gap:.3rem;margin-top:.1rem}
+/* SoW status pill on intake cards */
+.sow-status{
+  display:inline-flex;align-items:center;
+  font-size:.67rem;font-weight:600;border-radius:.28rem;
+  padding:.18rem .5rem;margin-bottom:.25rem;
+}
+.sow-attached{background:#E8F7EE;color:#1A6B3C;border:1px solid #A8D5B5}
+.sow-missing{background:#F4F7FB;color:#7A96B0;border:1px solid #C8D8E8}
+/* Outline CTA for attach SoW */
+.btn-outline{
+  background:#fff;color:#0070AD;
+  border:1.5px solid #0070AD;border-radius:.35rem;
+  font-size:.74rem;font-weight:600;padding:.3rem .7rem;cursor:pointer;
+  transition:all .13s;text-align:center;
+}
+.btn-outline:hover{background:#EDF5FF}
 .card-pending{
   font-size:.68rem;color:#AAC0D0;
   background:#F4F7FB;border:1.5px dashed #D0DCE8;
@@ -2192,6 +2213,62 @@ function openDetail(opp) {
   const dc = document.getElementById('detail-content');
   dc.style.display = 'flex';
 
+  // ── Intake: pre-analysis upload panel ──────────────────────────────
+  if (d.stage === 'intake') {
+    const mgr = d.manager || {};
+    const ini = mgr.name ? mgr.name.split(' ').filter(Boolean).map(p=>p[0]).join('').slice(0,2).toUpperCase() : '??';
+    const sowBadge = d.has_sow
+      ? '<span style="background:#E8F7EE;color:#1A6B3C;border:1px solid #A8D5B5;padding:.15rem .5rem;border-radius:.28rem;font-size:.7rem;font-weight:600">&#10003; SoW attached</span>'
+      : '<span style="background:#FEF3E2;color:#92530C;border:1px solid #F6C87A;padding:.15rem .5rem;border-radius:.28rem;font-size:.7rem;font-weight:600">&#9711; No SoW attached</span>';
+    const scanBtn = d.has_sow
+      ? `<button class="card-btn btn-primary" style="margin-top:.8rem" onclick="scan(event,'${opp}')">&#9654;&ensp;Run AI Review</button>`
+      : '';
+    dc.innerHTML = `
+      <div class="detail-top">
+        <div class="detail-opp">${d.opportunity_id}</div>
+        <div class="detail-name">${d.engagement_name}</div>
+        <div style="margin-top:.4rem">${sowBadge}</div>
+      </div>
+      <div class="detail-body-wrap">
+        <div class="ds">
+          <div class="ds-label">Attach / Replace SoW</div>
+          <div style="font-size:.74rem;color:#5A7A96;margin-bottom:.7rem">Upload the Statement of Work to enable AI review. Accepted formats: PDF, DOCX, TXT.</div>
+          <div class="intake-modal-dropzone" id="detail-drop-zone" style="margin-bottom:.5rem"
+               onclick="document.getElementById('detail-file-input').click()"
+               ondragover="event.preventDefault();this.classList.add('drag-over')"
+               ondragleave="this.classList.remove('drag-over')"
+               ondrop="handleDetailDrop(event,'${opp}')">
+            <input type="file" id="detail-file-input" accept=".pdf,.docx,.doc,.txt" onchange="onDetailFileChosen(this,'${opp}')"/>
+            <span id="detail-drop-label">${d.has_sow ? '&#128196;&ensp;Drop to replace current SoW' : '&#128196;&ensp;Drop or click to browse PDF / DOCX / TXT'}</span>
+          </div>
+          <div id="detail-upload-status" style="font-size:.74rem;color:#5A7A96;min-height:1.2em"></div>
+          <div id="detail-upload-actions" style="display:flex;gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
+            <button id="detail-upload-btn" class="card-btn btn-primary" disabled onclick="submitDetailUpload('${opp}')">Upload &amp; Run AI Review &#8594;</button>
+          </div>
+          ${scanBtn}
+        </div>
+        <div class="ds">
+          <div class="ds-label">Engagement Manager</div>
+          <div class="mgr-card">
+            <div class="mgr-avatar-lg">${ini}</div>
+            <div class="mgr-info">
+              <div class="mgr-name">${mgr.name||'—'}</div>
+              <div class="mgr-role">${mgr.title||''}</div>
+              <div class="mgr-email">${mgr.email||''}</div>
+            </div>
+          </div>
+        </div>
+        <div class="ds" style="opacity:.5;pointer-events:none">
+          <div class="ds-label">Agent Assessment</div>
+          <div style="font-size:.75rem;color:#AAC0CC;font-style:italic">Available after AI review is complete.</div>
+        </div>
+      </div>`;
+    document.getElementById('detail-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    return;
+  }
+
+  // ── Post-analysis stages ─────────────────────────────────────────
   const cfg = REC_CFG[d.recommendation] || {bg:'#EEF2F8',color:'#607A96',border:'#C8D4E0',icon:'·',label:d.rec_label||'—'};
   const mgr = d.manager || {};
   const ini = mgr.name ? mgr.name.split(' ').filter(Boolean).map(p=>p[0]).join('').slice(0,2).toUpperCase() : '??';
@@ -2434,8 +2511,51 @@ function closeDetail(e) {
   activeOpp = null;
 }
 
+// ─── Intake detail upload ─────────────────────────────────────────────────
+let detailChosenFile = null;
+function onDetailFileChosen(input, opp) {
+  detailChosenFile = (input.files||[])[0] || null;
+  if (detailChosenFile) {
+    const lbl = document.getElementById('detail-drop-label');
+    if (lbl) lbl.textContent = '\uD83D\uDCC4\u2002' + detailChosenFile.name;
+    const btn = document.getElementById('detail-upload-btn');
+    if (btn) btn.disabled = false;
+  }
+}
+function handleDetailDrop(e, opp) {
+  e.preventDefault();
+  const zone = document.getElementById('detail-drop-zone');
+  if (zone) zone.classList.remove('drag-over');
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) onDetailFileChosen({files:[f]}, opp);
+}
+function submitDetailUpload(opp) {
+  const d = DETAILS[opp];
+  if (!detailChosenFile || !d) return;
+  const btn = document.getElementById('detail-upload-btn');
+  const st  = document.getElementById('detail-upload-status');
+  if (btn) btn.disabled = true;
+  if (st)  st.textContent = '\u23F3 Uploading and running AI review\u2026 (30\u201360\u2009s)';
+  const fd = new FormData();
+  fd.append('file', detailChosenFile);
+  fd.append('opportunity_id', d.opportunity_id);
+  fd.append('engagement_name', d.engagement_name);
+  fetch('/upload', {method:'POST', body:fd})
+    .then(async r => {
+      const txt = await r.text();
+      if (r.ok) {
+        let rec = ''; try { rec = JSON.parse(txt).recommendation; } catch(_) {}
+        if (st) st.textContent = '\u2713 Verdict: ' + (rec || 'see pipeline') + '. Refreshing\u2026';
+        setTimeout(() => location.reload(), 1400);
+      } else {
+        if (st) st.textContent = 'Error: ' + txt;
+        if (btn) btn.disabled = false;
+      }
+    })
+    .catch(err => { if (st) st.textContent = 'Network error: ' + err; if (btn) btn.disabled = false; });
+}
+
 function openIntakeModal() {
-  document.getElementById('intake-modal-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
   setTimeout(()=>document.getElementById('opp-id').focus(), 100);
 }
