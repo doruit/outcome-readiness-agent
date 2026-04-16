@@ -68,6 +68,39 @@ def get_manager(opportunity_id: str) -> dict:
     pool = list(ENGAGEMENT_MANAGERS.values())
     return pool[hash(opportunity_id) % len(pool)]
 
+# Fictional deal sizes (€) per opportunity
+DEAL_SIZES = {
+    "OPP-2026-0301": 1_800_000,
+    "OPP-2026-0302":   620_000,
+    "OPP-2026-0303": 2_400_000,
+    "OPP-2026-0304":   450_000,
+    "OPP-2026-0305":   980_000,
+    "OPP-2026-0306": 1_250_000,
+    "OPP-2026-0307":   375_000,
+    "OPP-2026-0308": 3_100_000,
+    "OPP-2026-0309":   760_000,
+    "OPP-2026-0310":   520_000,
+    "OPP-2026-0201":   840_000,
+    "OPP-2026-0202":   290_000,
+    "OPP-2026-0203": 1_600_000,
+    "OPP-2026-0204":   710_000,
+    "OPP-2026-0205": 2_200_000,
+    "OPP-2026-0206":   430_000,
+    "OPP-2026-0207":   950_000,
+    "OPP-2026-0208": 1_100_000,
+    "OPP-2026-0209":   580_000,
+    "OPP-2026-0210":   340_000,
+    "OPP-2026-0211": 1_750_000,
+    "OPP-2026-0212":   670_000,
+    "OPP-2024-0112":   490_000,
+    "OPP-2024-0088": 1_050_000,
+    "OPP-2025-0034":   820_000,
+    "OPP-2025-0071": 1_380_000,
+}
+
+def get_deal_size(opportunity_id: str) -> float:
+    return DEAL_SIZES.get(opportunity_id, 500_000)
+
 # ---------------------------------------------------------------------------
 # Document text extraction
 # ---------------------------------------------------------------------------
@@ -94,8 +127,9 @@ def extract_text(filename: str, data: bytes) -> str:
 # ---------------------------------------------------------------------------
 # Agent calls
 # ---------------------------------------------------------------------------
-SCAN_AGENT_PORT          = int(os.getenv("SCAN_AGENT_PORT", "8088"))
-REVIEW_AGENT_PORT        = int(os.getenv("REVIEW_AGENT_PORT", "8089"))
+INTAKE_AGENT_PORT        = int(os.getenv("INTAKE_AGENT_PORT",  "8087"))
+SCAN_AGENT_PORT          = int(os.getenv("SCAN_AGENT_PORT",   "8088"))
+REVIEW_AGENT_PORT        = int(os.getenv("REVIEW_AGENT_PORT",  "8089"))
 CLARIFICATION_AGENT_PORT = int(os.getenv("CLARIFICATION_AGENT_PORT", "8090"))
 
 def _call_agent(port: int, input_text: str) -> dict:
@@ -116,19 +150,23 @@ def _call_agent(port: int, input_text: str) -> dict:
     except (KeyError, IndexError, json.JSONDecodeError):
         return json.loads(raw)
 
-def call_agent_with_text(opp_id, eng_name, sow_text):
+def call_agent_with_text(opp_id, eng_name, sow_text, deal_size=None):
+    deal_hint = f"\ndeal_size_eur: {deal_size}" if deal_size else ""
     return _call_agent(SCAN_AGENT_PORT,
-        f"opportunity_id: {opp_id}\nengagement_name: {eng_name}\n\n{sow_text}")
+        f"opportunity_id: {opp_id}\nengagement_name: {eng_name}{deal_hint}\n\n{sow_text}")
+
+def call_intake_agent(opp_id: str, sow_text: str) -> dict:
+    return _call_agent(INTAKE_AGENT_PORT,
+        f"opportunity_id: {opp_id}\n\n{sow_text}")
 
 # ---------------------------------------------------------------------------
 # Pipeline stages
 # ---------------------------------------------------------------------------
 STAGES = [
     ("intake",          "Intake",              "Awaiting SoW and agent scan"),
-    ("scanned",         "AI Assessment",       "Automated scan complete — verdict ready"),
-    ("under_review",    "Human Review",        "Human reviewer assessing AI output"),
-    ("verdict",         "Verdict",             "Human verdict recorded — ready for report"),
-    ("generate_report", "Generate AI Report",  "AI report agent producing final output"),
+    ("scanned",         "Extract Outcomes from SoW", "Automated scan complete — ready for review"),
+    ("under_review",    "Human Review",              "Human reviewer assessing AI output"),
+    ("generate_report", "Generate Instructions for Engagement Mgr", "Instruction package for the Engagement Manager"),
     ("archived",        "Archived",            "Engagement closed"),
 ]
 STAGE_KEYS = [s[0] for s in STAGES]
@@ -136,8 +174,7 @@ STAGE_KEYS = [s[0] for s in STAGES]
 ADVANCE_TO = {
     "intake":          "scanned",
     "scanned":         "under_review",
-    "under_review":    "verdict",
-    "verdict":         "generate_report",
+    "under_review":    "generate_report",
     "generate_report": "archived",
 }
 
@@ -145,7 +182,6 @@ STAGE_COLOR = {
     "intake":          "#8BAABF",
     "scanned":         CAP_BLUE,
     "under_review":    "#7B52AB",
-    "verdict":         "#2D9E6B",
     "generate_report": "#E8970A",
     "archived":        "#B0B0B0",
 }
@@ -170,12 +206,25 @@ def ensure_columns(con):
         ("agent_name",                   "TEXT"),
         ("value_attribution",            "TEXT"),
         ("engagement_manager",           "TEXT"),
+        ("revenue_gain",               "REAL DEFAULT 0"),
+        ("deal_size",                  "REAL DEFAULT 0"),
+        ("intake_enriched",            "INTEGER DEFAULT 0"),
     ]:
         try:
             con.execute(f"ALTER TABLE runs ADD COLUMN {col} {defn}")
             con.commit()
         except Exception:
             pass
+    # Back-fill deal_size for existing rows that have none
+    try:
+        rows = con.execute("SELECT DISTINCT opportunity_id FROM runs WHERE deal_size IS NULL OR deal_size = 0").fetchall()
+        for (oid,) in rows:
+            ds = get_deal_size(oid)
+            if ds:
+                con.execute("UPDATE runs SET deal_size=? WHERE opportunity_id=?", (ds, oid))
+        con.commit()
+    except Exception:
+        pass
 
 def log_run(result: dict, db_path: str, pipeline_status: str = "scanned", sow_text: str = "") -> None:
     opp_id = result.get("opportunity_id", "")
@@ -187,8 +236,9 @@ def log_run(result: dict, db_path: str, pipeline_status: str = "scanned", sow_te
             (run_id, opportunity_id, engagement_name, recommendation,
              status, pipeline_status, hours_saved, created_at,
              summary, detected_outcomes, missing_kpis, transformation_opportunities,
-             sow_text, agent_name, value_attribution, engagement_manager)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+             sow_text, agent_name, value_attribution, engagement_manager, revenue_gain,
+             deal_size, intake_enriched)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
         result.get("run_id"), opp_id, result.get("engagement_name"),
         result.get("recommendation"), result.get("status", "draft"),
@@ -201,6 +251,9 @@ def log_run(result: dict, db_path: str, pipeline_status: str = "scanned", sow_te
         sow_text or "", result.get("agent_name", ""),
         json.dumps(result.get("value_attribution") or {}),
         json.dumps(mgr),
+        result.get("revenue_gain") or 0,
+        result.get("deal_size") or 0,
+        1 if result.get("deal_size") else 0,
     ))
     con.commit()
     con.close()
@@ -242,6 +295,8 @@ def load_data(db_path: str) -> dict:
             row["pipeline_status"] = "scanned"
         if not row.get("engagement_manager"):
             row["engagement_manager"] = get_manager(row.get("opportunity_id", ""))
+        if not row.get("deal_size"):
+            row["deal_size"] = get_deal_size(row.get("opportunity_id", ""))
 
     buckets = {s: [] for s in STAGE_KEYS}
     for row in latest:
@@ -250,15 +305,29 @@ def load_data(db_path: str) -> dict:
         buckets[stage].append(row)
 
     total_runs    = con.execute("SELECT COUNT(*) FROM runs").fetchone()[0] or 0
-    total_hours   = round(sum(r.get("hours_saved") or 0 for r in latest), 1)
-    avg_hours     = round(total_hours / len(latest), 1) if latest else 0
     total_opps    = len(latest)
+    HOURS_PER_COL = 5  # hours saved per engagement per AI column
+    # Col-2 savings realised when card has moved past 'scanned' (i.e. stage != intake)
+    COL2_REALIZED_STAGES = {'scanned', 'under_review', 'verdict', 'generate_report', 'archived'}
+    # Col-4 savings realised when card has moved into or past 'generate_report'
+    COL4_REALIZED_STAGES = {'generate_report', 'archived'}
+    col2_realized = sum(1 for r in latest if r.get('pipeline_status') in COL2_REALIZED_STAGES)
+    col4_realized = sum(1 for r in latest if r.get('pipeline_status') in COL4_REALIZED_STAGES)
+    total_hours   = round((col2_realized + col4_realized) * HOURS_PER_COL, 1)
+    avg_hours     = round(total_hours / total_opps, 1) if total_opps else 0
+    col2_remaining = total_opps - col2_realized
+    col4_remaining = total_opps - col4_realized
+    potential_remaining = round((col2_remaining + col4_remaining) * HOURS_PER_COL, 1)
     validated_cnt = len(buckets.get("generate_report", [])) + len(buckets.get("archived", []))
     coverage_pct  = round(validated_cnt / total_opps * 100) if total_opps else 0
     outcome_ready = len([r for r in latest if r.get("recommendation") == "recommend"])
     n_recommend  = len([r for r in latest if r.get("recommendation") == "recommend"])
     n_reconsider = len([r for r in latest if r.get("recommendation") == "reconsider"])
     n_rule_out   = len([r for r in latest if r.get("recommendation") == "rule_out"])
+
+    total_revenue_gain = round(sum(r.get("revenue_gain") or 0 for r in latest), 0)
+    avg_revenue_gain   = round(total_revenue_gain / total_opps, 0) if total_opps else 0
+    recommend_revenue  = round(sum(r.get("revenue_gain") or 0 for r in latest if r.get("recommendation") == "recommend"), 0)
 
     # Run history per opportunity
     run_history: dict = {}
@@ -282,6 +351,10 @@ def load_data(db_path: str) -> dict:
         "coverage_pct": coverage_pct, "outcome_ready": outcome_ready,
         "run_history": run_history,
         "n_recommend": n_recommend, "n_reconsider": n_reconsider, "n_rule_out": n_rule_out,
+        "potential_remaining": potential_remaining,
+        "total_revenue_gain": total_revenue_gain,
+        "avg_revenue_gain": avg_revenue_gain,
+        "recommend_revenue": recommend_revenue,
     }
 
 # ---------------------------------------------------------------------------
@@ -306,24 +379,21 @@ def card_html(row: dict) -> str:
     is_intake     = stage == "intake"
     cfg           = REC_CONFIG.get(rec, {})
 
-    advance_label = {
-        "generate_report": "Archive",
-    }.get(stage, "")
-
     advance_btn = ""
-    if next_s and advance_label:
-        btn_cls = "btn-ghost" if next_s == "archived" else ("btn-amber" if next_s == "intake" else "btn-primary")
-        advance_btn = (f'<button onclick="advance(event,\'{opp}\',\'{next_s}\')" '
-                       f'class="card-btn {btn_cls}">{advance_label} →</button>')
-
     extra_btn = ""
-    if stage == "under_review" and rec == "reconsider":
-        extra_btn = (f'<button onclick="advance(event,\'{opp}\',\'needs_clarification\')" '
-                     f'class="card-btn btn-amber">Flag for Clarification</button>')
 
     mgr_ini = initials(mgr.get("name", "??"))
 
     has_sow = bool((row.get("sow_text") or "").strip())
+    deal_size       = row.get("deal_size") or 0
+    intake_enriched = bool(row.get("intake_enriched"))
+    deal_pill = ""
+    if deal_size:
+        ds = deal_size
+        if ds >= 1_000_000: ds_str = f"\u20ac{ds/1_000_000:.1f}M"
+        elif ds >= 1_000:   ds_str = f"\u20ac{int(ds)//1_000:,}k"
+        else:               ds_str = f"\u20ac{int(ds):,}"
+        deal_pill = f'<span class="deal-pill">{ds_str} deal</span>'
 
     if is_intake:
         sow_pill = ('<span class="sow-status sow-attached">&#10003;&ensp;SoW attached</span>'
@@ -333,29 +403,25 @@ def card_html(row: dict) -> str:
                   if has_sow else
                   f'<button onclick="event.stopPropagation();openDetail(\'{opp}\')" class="card-btn btn-outline">Attach SoW \u2192</button>')
         return f'''<div class="eng-card stage-intake" draggable="true" onclick="openDetail('{opp}')" id="card-{opp}" data-opp="{opp}" data-stage="intake" data-has-sow="{'1' if has_sow else '0'}">
+  <button onclick="removeCard(event,'{opp}')" class="btn-remove" title="Remove">🗑</button>
   <div class="card-opp">{opp}</div>
   <div class="card-name">{name}</div>
   <div class="card-mgr"><span class="mgr-avatar">{mgr_ini}</span>{mgr.get("name","")}</div>
+  {deal_pill}
   {sow_pill}
   <div class="card-actions" onclick="event.stopPropagation()">{action}</div>
 </div>'''
 
-    rec_badge = ""
-    if cfg:
-        rec_badge = (f'<span class="badge-rec" style="background:{cfg["bg"]};color:{cfg["color"]};'
-                     f'border:1px solid {cfg["border"]}" title="{cfg["label"]}">{cfg["icon"]}</span>')
 
     return f'''<div class="eng-card stage-{stage.replace("_","-")}" draggable="true" onclick="openDetail('{opp}')" id="card-{opp}" data-opp="{opp}" data-stage="{stage}">
-  <span class="card-hours">{hours:.1f} h</span>
+  <button onclick="removeCard(event,'{opp}')" class="btn-remove" title="Remove">🗑</button>
   <div class="card-opp">{opp}</div>
   <div class="card-name">{name}</div>
-  {('<div class="card-summary">'+summary_short+'</div>') if summary_short else ""}
-  {'<div class="card-kpi-gap">⚠ ' + str(kpi_count) + ' KPI gap' + ('s' if kpi_count!=1 else '') + '</div>' if kpi_count else ""}
+  {deal_pill}
+  {('<div class="card-summary">'+ summary_short +'</div>') if summary_short else ""}
   <div class="card-verdict-row">
-    {rec_badge}
     <div class="card-mgr" style="margin-bottom:0"><span class="mgr-avatar">{mgr_ini}</span>{mgr.get("name","")}</div>
   </div>
-  <div class="card-actions" onclick="event.stopPropagation()">{advance_btn}{extra_btn}</div>
 </div>'''
 
 # ---------------------------------------------------------------------------
@@ -382,17 +448,17 @@ def build_detail_payload(row: dict, run_history: dict) -> dict:
 
     mgr_first = (mgr.get("name") or "the engagement manager").split()[0]
     if stage == "scanned":
-        next_action = ("AI Assessment complete. Human review required — validate the agent verdict, "
+        next_action = ("Outcomes extracted from SoW. Human review required — validate the agent verdict, "
                        "review detected outcomes, and record a verdict.")
     elif stage == "under_review":
         next_action = (f"Under human review by {mgr_first}. Record a verdict to proceed to "
-                       "report generation.")
+                       "instruction generation.")
     elif stage == "verdict":
-        next_action = ("Verdict recorded. Trigger the AI Report agent to produce the final "
-                       "outcome-readiness report for stakeholder delivery.")
+        next_action = ("Verdict recorded. Generate the instruction package for the Engagement Manager "
+                       "— this will save a further 5 hours of preparation time.")
     elif stage == "generate_report":
-        next_action = ("AI report generation in progress. Review and distribute the final report, "
-                       "then archive the engagement.")
+        next_action = ("Instructions generated. Send them to the Engagement Manager to validate "
+                       "the verdict, review detected outcomes, and record a final decision.")
     elif stage == "archived":
         next_action = ("Engagement archived. Drag back to Intake to restart the process "
                        "with a new or revised SoW.")
@@ -412,6 +478,8 @@ def build_detail_payload(row: dict, run_history: dict) -> dict:
         "missing_kpis":              row.get("missing_kpis") or [],
         "transformation_opportunities": row.get("transformation_opportunities") or [],
         "hours_saved":               row.get("hours_saved") or 0,
+        "deal_size":                 row.get("deal_size") or get_deal_size(opp),
+        "revenue_gain":              row.get("revenue_gain") or 0,
         "value_attribution":         row.get("value_attribution") or {},
         "commercial_direction":      direction,
         "next_action":               next_action,
@@ -422,6 +490,12 @@ def build_detail_payload(row: dict, run_history: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Board HTML
 # ---------------------------------------------------------------------------
+LANE_AGENT_BADGE = {
+    "intake":          "\U0001f916\u2002Intake Agent",
+    "scanned":         "\U0001f916\u2002Outcome Extraction Agent",
+    "generate_report": "\U0001f916\u2002Outcome Based Instructions Agent",
+}
+
 def build_board(buckets: dict) -> str:
     parts = []
     for key, label, hint in STAGES:
@@ -429,6 +503,11 @@ def build_board(buckets: dict) -> str:
         color  = STAGE_COLOR.get(key, CAP_BLUE)
         ghost = '<div class="ghost-intake-card" onclick="openIntakeModal()">&#43; Submit New Opportunity</div>' if key == "intake" else ""
         c_html = ghost + ("".join(card_html(c) for c in cards) or '<div class="lane-empty">No engagements</div>')
+        agent_name = LANE_AGENT_BADGE.get(key, "")
+        agent_html = (f'<div class="lane-plugin-wrap">'
+                      f'<div class="lane-plugin-chip">{agent_name}</div>'
+                      f'<div class="lane-plugin-connector"></div>'
+                      f'</div>') if agent_name else ""
         parts.append(f'''<div class="lane lane-{key.replace("_","-")}" style="--lane-color:{color}" data-lane="{key}">
   <div class="lane-header">
     <span class="lane-dot" style="background:{color}"></span>
@@ -436,6 +515,7 @@ def build_board(buckets: dict) -> str:
     <span class="lane-count">{len(cards)}</span>
   </div>
   <div class="lane-hint">{hint}</div>
+  {agent_html}
   <div class="lane-cards" data-lane="{key}">{c_html}</div>
 </div>''')
     return "\n".join(parts)
@@ -443,6 +523,12 @@ def build_board(buckets: dict) -> str:
 # ---------------------------------------------------------------------------
 # Page render
 # ---------------------------------------------------------------------------
+def _fmt_eur(v: float) -> str:
+    v = int(v or 0)
+    if v >= 1_000_000: return f"€{v/1_000_000:.1f}M"
+    if v >= 1_000:     return f"€{v//1_000:,}k"
+    return f"€{v:,}"
+
 def render(db_path: str) -> str:
     d          = load_data(db_path)
     board_html = build_board(d["buckets"])
@@ -468,9 +554,16 @@ def render(db_path: str) -> str:
         "%%COVERAGE_COLOR%%": coverage_color,
         "%%VALIDATED_CNT%%": str(d["validated_cnt"]),
         "%%OUTCOME_READY%%": str(d["outcome_ready"]),
-        "%%N_RECOMMEND%%":   str(d["n_recommend"]),
-        "%%N_RECONSIDER%%":  str(d["n_reconsider"]),
-        "%%N_RULE_OUT%%":    str(d["n_rule_out"]),
+        "%%N_RECOMMEND%%":       str(d["n_recommend"]),
+        "%%N_RECONSIDER%%":      str(d["n_reconsider"]),
+        "%%N_RULE_OUT%%":        str(d["n_rule_out"]),
+        "%%POTENTIAL_REMAINING%%": str(d["potential_remaining"]),
+        "%%TOTAL_REVENUE_GAIN%%":  _fmt_eur(d["total_revenue_gain"]),
+        "%%RECOMMEND_REVENUE%%":   _fmt_eur(d["recommend_revenue"]),
+        "%%AVG_REVENUE_GAIN%%":    _fmt_eur(d["avg_revenue_gain"]),
+        "%%TOTAL_REVENUE_RAW%%":   str(int(d["total_revenue_gain"])),
+        "%%RECOMMEND_REVENUE_RAW%%": str(int(d["recommend_revenue"])),
+        "%%N_RECOMMEND_ACTIVE%%": str(len([r for rows in d["buckets"].values() for r in rows if r.get("recommendation") == "recommend" and r.get("pipeline_status") != "archived"])),
         "%%BOARD_HTML%%":    board_html,
         "%%DETAILS_JSON%%":  details_json,
         "%%BLUE%%":          CAP_BLUE,
@@ -507,70 +600,60 @@ body{
 
 /* ─── Topbar ─────────────────────────────────────────────────────── */
 .topbar{
-  background:""" + CAP_NAVY + r""";
-  padding:.7rem 2rem;
-  display:flex;align-items:center;justify-content:space-between;
-  border-bottom:3px solid """ + CAP_BLUE + r""";
+  background:#fff;
+  padding:.85rem 2rem .7rem;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  border-bottom:1px solid """ + CAP_BORDER + r""";
   position:sticky;top:0;z-index:100;
 }
-.topbar-left{display:flex;align-items:center;gap:.9rem}
+.topbar-left{display:flex;flex-direction:column;gap:.15rem}
 .topbar-brand{
-  font-size:.82rem;font-weight:800;letter-spacing:.09em;
-  color:#fff;text-transform:uppercase;
+  font-size:.88rem;font-weight:800;letter-spacing:.01em;
+  color:""" + CAP_NAVY + r""";
 }
-.topbar-sep{color:#2A4060;font-size:1.2rem;font-weight:300}
-.topbar-title{font-size:.88rem;color:#8DAFC8;font-weight:400;letter-spacing:.01em}
-.topbar-right{font-size:.75rem;color:#516A80;display:flex;align-items:center;gap:.9rem}
-.topbar-right a{color:#7BA4C0;text-decoration:none;transition:color .15s}
-.topbar-right a:hover{color:#B8D4E8}
+.topbar-desc{font-size:.72rem;color:#5A7A96;line-height:1.5;max-width:54rem}
+.topbar-right{font-size:.72rem;color:#7A96B0;display:flex;align-items:center;gap:.75rem;padding-top:.15rem}
+.topbar-right a{color:""" + CAP_BLUE + r""";text-decoration:none;font-weight:600;transition:color .15s}
+.topbar-right a:hover{color:#004E7A}
 .demo-badge{
-  background:rgba(0,112,173,.25);
-  color:#5AC0F5;
-  border:1px solid rgba(0,112,173,.4);
-  border-radius:.2rem;
-  padding:.12rem .5rem;
-  font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  background:#EDF4FA;
+  color:""" + CAP_BLUE + r""";
+  border:1px solid #C0D8EA;
+  border-radius:.25rem;
+  padding:.1rem .45rem;
+  font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
 }
 
 /* ─── Page ───────────────────────────────────────────────────────── */
 .page{padding:1rem 0 4rem;width:100%}
 
-/* ─── Topbar model taxonomy ───────────────────────────────── */
-.topbar-model{
-  background:#0A1829;
-  border-bottom:1px solid #152236;
-  padding:0 2rem;
-  display:flex;align-items:center;height:28px;
-}
-.tm-pill{
-  display:flex;align-items:center;gap:.38rem;
-  padding:0 1rem;height:100%;
-  border-right:1px solid #1A2E48;
-}
-.tm-pill:first-child{padding-left:0}
-.tm-pill:last-child{border-right:none}
-.tm-role{font-size:.59rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#3A5A78}
-.tm-name{font-size:.68rem;font-weight:500;color:#6A8AA4}
-.tm-sep{font-size:.6rem;color:#1E3450}
-
 /* ─── Cockpit header ─────────────────────────────────────────────── */
 .cockpit-header{
   display:flex;align-items:center;justify-content:space-between;
-  padding:.6rem 1.4rem;border-bottom:1px solid #DDE5EF;
-  background:""" + CAP_NAVY + r""";
+  padding:.6rem 1.4rem;border-bottom:1px solid #C0D8EA;
+  background:#E4EEF6;
 }
 .cockpit-title{
   font-size:.78rem;font-weight:700;letter-spacing:.09em;
-  text-transform:uppercase;color:#fff;
+  text-transform:uppercase;color:""" + CAP_NAVY + r""";
 }
 .cockpit-controls{display:flex;align-items:center;gap:.35rem}
+.cockpit-tabs{display:flex;gap:.4rem;margin-left:auto}
+.cockpit-tab{
+  padding:.28rem .8rem;border-radius:.35rem;
+  font-size:.72rem;font-weight:600;cursor:pointer;
+  border:1px solid #C0D8EA;background:transparent;color:#5A7A96;
+  transition:all .13s;letter-spacing:.01em;
+}
+.cockpit-tab.active{background:#0E1E38;border-color:#0E1E38;color:#fff}
+.cockpit-tab:hover:not(.active){background:#EDF4FA}
 .cockpit-scen-label{
   font-size:.6rem;font-weight:600;letter-spacing:.06em;
-  text-transform:uppercase;color:rgba(255,255,255,.5);margin-right:.25rem;
+  text-transform:uppercase;color:#5A7A96;margin-right:.25rem;
 }
 
 /* ─── KPI row ────────────────────────────────────────────────────── */
-.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-bottom:1px solid #DDE5EF}
+.kpi-row{display:grid;grid-template-columns:repeat(3,1fr);background:#fff;border-bottom:1px solid #DDE5EF}
 .kpi-tile{padding:.75rem 1.2rem .7rem;position:relative;overflow:hidden;border-right:1px solid #DDE5EF}
 .kpi-tile:last-child{border-right:none}
 .kpi-tile::after{
@@ -597,8 +680,15 @@ body{
 .osb-ruleout{background:#D94040}
 
 /* ─── Section header ─────────────────────────────────────────────── */
-.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;padding:0 1.5rem}
-.section-title{font-size:.76rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#3A5A78}
+.section-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.6rem 1.4rem;margin-bottom:0;
+  background:#E4EEF6;border-bottom:1px solid #C0D8EA;
+}
+.section-title{
+  font-size:.78rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.09em;color:""" + CAP_NAVY + r""";
+}
 
 /* ─── Intake panel ───────────────────────────────────────────────── */
 .intake-panel{
@@ -707,13 +797,19 @@ body{
   overflow:hidden;
   margin:0 1.5rem;
 }
-.board-section{margin-top:.5rem}
+.board-section{
+  margin-top:.5rem;
+  border:1px solid #DDE5EF;
+  border-radius:.55rem;
+  overflow:hidden;
+  margin-left:1.5rem;margin-right:1.5rem;
+}
 .board-scroll{overflow-x:auto;padding:.2rem 0 .75rem}
 .pipeline{
   display:grid;
-  grid-template-columns:repeat(6,minmax(160px,1fr));
-  gap:.75rem;min-width:960px;
-  padding:0 1.5rem;
+  grid-template-columns:repeat(5,minmax(160px,1fr));
+  gap:.75rem;min-width:800px;
+  padding:0;
 }
 
 /* ─── Lane ───────────────────────────────────────────────────────── */
@@ -825,6 +921,31 @@ body{
   display:inline-flex;align-items:center;gap:.25rem;
   margin-bottom:.3rem;
 }
+.lane-plugin-wrap{
+  display:flex;flex-direction:column;align-items:center;
+  margin:.1rem 0 0;
+  padding-bottom:0;
+}
+.lane-plugin-chip{
+  display:inline-flex;align-items:center;gap:.35rem;
+  font-size:.71rem;font-weight:700;
+  color:#2A4E6C;
+  background:#fff;
+  border:1.5px solid #B8D4EE;
+  border-radius:.55rem;
+  padding:.3rem .75rem;
+  box-shadow:0 2px 8px rgba(0,112,173,.10),0 1px 2px rgba(0,0,0,.06);
+  letter-spacing:.01em;
+  white-space:nowrap;
+  position:relative;
+  z-index:1;
+}
+.lane-plugin-connector{
+  width:2px;
+  height:14px;
+  background:linear-gradient(to bottom,#B8D4EE,transparent);
+  margin-top:0;
+}
 .card-mgr{
   display:flex;align-items:center;gap:.35rem;
   font-size:.72rem;color:#4A6A84;
@@ -847,6 +968,13 @@ body{
 }
 .sow-attached{background:#E8F7EE;color:#1A6B3C;border:1px solid #A8D5B5}
 .sow-missing{background:#F4F7FB;color:#7A96B0;border:1px solid #C8D8E8}
+.deal-pill{
+  display:inline-flex;align-items:center;
+  font-size:.67rem;font-weight:700;border-radius:.28rem;
+  padding:.18rem .55rem;margin-bottom:.22rem;
+  background:#EEF5FF;color:#0054A3;border:1px solid #B8D0EF;
+  letter-spacing:.01em;
+}
 /* Outline CTA for attach SoW */
 .btn-outline{
   background:#fff;color:#0070AD;
@@ -863,7 +991,6 @@ body{
 }
 
 /* Card state coloring */
-.stage-verdict{background:#F3FCF7;border-color:#9ED5B2}
 .stage-generate-report{background:#FEF8EC;border-color:#F0C860}
 .stage-archived{opacity:.58;pointer-events:auto}
 
@@ -885,6 +1012,17 @@ body{
 .btn-ghost:hover{background:#E4EBF4;border-color:#C0CDD8}
 .btn-amber{background:#FEF3E0;color:#8A4D0A;border-color:#EDD080}
 .btn-amber:hover{background:#FAEACA;border-color:#D4A840}
+.btn-remove{
+  position:absolute;bottom:.38rem;right:.42rem;
+  background:none;border:none;cursor:pointer;
+  font-size:.8rem;line-height:1;padding:.15rem;
+  border-radius:.25rem;color:#B0BEC5;
+  opacity:0;pointer-events:none;
+  transition:color .12s,background .12s,opacity .12s;
+  z-index:2;
+}
+.eng-card:hover .btn-remove{opacity:1;pointer-events:auto}
+.btn-remove:hover{color:#9B3030;background:#FDECEA}
 
 /* ─── Detail panel ───────────────────────────────────────────────── */
 .detail-panel{display:none}/* replaced by popup */
@@ -965,6 +1103,13 @@ body{
   border-radius:.3rem;padding:.22rem .6rem;
   font-size:.76rem;font-weight:600;color:""" + CAP_BLUE + r""";
 }
+.detail-rev-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:.28rem 0;border-bottom:1px solid #EEF3F8;
+  font-size:.76rem;
+}
+.detail-rev-label{color:#6A8AA0;font-weight:500}
+.detail-rev-val{font-weight:700;color:#1A3050}
 .detail-body-wrap{padding:1.1rem 1.4rem 1.4rem;display:flex;flex-direction:column;gap:1.15rem}
 
 /* Individual detail sections */
@@ -1159,33 +1304,75 @@ code{
 }
 .footer{margin-top:3rem;text-align:center;font-size:.74rem;color:#AAC0CC}
 
-/* ─── ROI panel (assumptions drawer only) ────────────────── */
-.roi-panel{border-bottom:1px solid #DDE5EF}
+/* ─── ROI panel (always-visible sliders) ─────────────────── */
+.roi-assumptions{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:0;
+  background:#FAFCFE;border-top:1px solid #DDE5EF;
+  padding:.7rem 1.4rem .8rem;
+}
 .roi-bar-scen{
   padding:.18rem .55rem;border-radius:9999px;
   font-size:.6rem;font-weight:600;cursor:pointer;
-  border:1px solid rgba(255,255,255,.25);background:transparent;color:rgba(255,255,255,.65);
+  border:1px solid #C0D8EA;background:transparent;color:#5A7A96;
   transition:all .13s;letter-spacing:.01em;
 }
-.roi-bar-scen.active{background:#fff;border-color:#fff;color:#0E1E38}
-.roi-bar-scen:hover:not(.active){background:rgba(255,255,255,.12)}
+.roi-bar-scen.active{background:""" + CAP_NAVY + r""";border-color:""" + CAP_NAVY + r""";color:#fff}
+.roi-bar-scen:hover:not(.active){background:#EDF4FA}
 .roi-expand-btn{
-  font-size:.6rem;font-weight:600;color:rgba(255,255,255,.55);
-  background:none;border:1px solid rgba(255,255,255,.2);
+  font-size:.6rem;font-weight:600;color:#5A7A96;
+  background:none;border:1px solid #C0D8EA;
   border-radius:.3rem;padding:.18rem .55rem;
   cursor:pointer;white-space:nowrap;flex-shrink:0;
   margin-left:.4rem;transition:all .12s;
 }
-.roi-expand-btn:hover{background:rgba(255,255,255,.12);color:#fff}
-.roi-body{
-  padding:.8rem 1.4rem .9rem;
-  border-top:1px solid #DDE5EF;
-  background:#FAFCFE;
+.roi-expand-btn:hover{background:#EDF4FA;color:""" + CAP_NAVY + r"""}
+
+/* ─── Financial Outlook section ──────────────────────────── */
+.fin-section{
+  border-bottom:1px solid #DDE5EF;
 }
-.roi-body.collapsed{display:none}
+.fin-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.55rem 1.4rem;border-bottom:1px solid #DDE5EF;
+  background:""" + CAP_LIGHT + r""";
+}
+.fin-title{
+  font-size:.68rem;font-weight:700;letter-spacing:.07em;
+  text-transform:uppercase;color:#3A5A78;
+}
+.fin-tabs{display:flex;align-items:center;gap:.35rem}
+.fin-tab{
+  padding:.22rem .65rem;border-radius:9999px;
+  font-size:.62rem;font-weight:600;cursor:pointer;
+  border:1px solid #C0D8EA;background:transparent;color:#5A7A96;
+  transition:all .13s;
+}
+.fin-tab.active{background:""" + CAP_NAVY + r""";border-color:""" + CAP_NAVY + r""";color:#fff}
+.fin-tab:hover:not(.active){background:#EDF4FA}
+.fin-metrics{
+  display:grid;grid-template-columns:repeat(6,1fr);
+  padding:0;background:#fff;
+}
+.fin-metric{
+  padding:.65rem 1rem .6rem;
+  border-right:1px solid #DDE5EF;
+}
+.fin-metric:last-child{border-right:none}
+.fin-metric-label{
+  font-size:.58rem;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:#5A7A96;margin-bottom:.18rem;
+}
+.fin-metric-value{
+  font-size:1.2rem;font-weight:800;line-height:1;
+  color:var(--fin-accent,""" + CAP_NAVY + r""");letter-spacing:-.02em;
+}
+.fin-metric-sub{font-size:.6rem;color:#7A96B0;margin-top:.15rem}
 .roi-assumptions{
   display:grid;grid-template-columns:repeat(5,1fr);
-  gap:.55rem;margin-bottom:.75rem;
+  gap:.55rem;
+  padding:.7rem 1.4rem .8rem;
+  background:#FAFCFE;
+  border-top:1px solid #DDE5EF;
 }
 .roi-assumption{display:flex;flex-direction:column;gap:.18rem}
 .roi-assumption label{
@@ -1445,34 +1632,35 @@ code{
 
 /* Wide — 1400 px + : give board more room */
 @media(min-width:1400px){
-  .pipeline{grid-template-columns:repeat(6,minmax(190px,1fr))}
+  .pipeline{grid-template-columns:repeat(5,minmax(190px,1fr))}
 }
 
 /* Medium — below 1200px */
 @media(max-width:1199px){
   .combined-panel{margin:0 .75rem}
   .board-section{margin-top:.75rem}
-  .kpi-row{grid-template-columns:repeat(3,1fr)}
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
 }
 
 /* Tablet — below 900px */
 @media(max-width:899px){
   .page{padding:1.25rem 0 4rem}
   .kpi-row{grid-template-columns:repeat(2,1fr)}
-  .pipeline{grid-template-columns:repeat(6,minmax(150px,1fr));min-width:900px}
+  .pipeline{grid-template-columns:repeat(5,minmax(150px,1fr));min-width:750px}
 }
 
 /* Small — below 600px */
 @media(max-width:599px){
   .topbar{padding:.6rem 1rem}
-  .topbar-title{display:none}
+  .topbar-desc{display:none}
+  .fin-metrics{grid-template-columns:repeat(3,1fr)}
   .page{padding:1rem 0 4rem}
   .kpi-row{grid-template-columns:repeat(2,1fr);gap:.65rem}
   .kpi-value{font-size:1.75rem}
   .intake-form{flex-direction:column}
   .drop-zone{min-width:0}
   .board-scroll{padding:0 .75rem .75rem}
-  .pipeline{grid-template-columns:repeat(6,minmax(138px,1fr));min-width:840px}
+  .pipeline{grid-template-columns:repeat(5,minmax(138px,1fr));min-width:690px}
   .detail-name{font-size:.95rem}
 }
 </style>
@@ -1481,22 +1669,14 @@ code{
 
 <div class="topbar">
   <div class="topbar-left">
-    <span class="topbar-brand">Contoso</span>
-    <span class="topbar-sep">·</span>
-    <span class="topbar-title">Value Steering Dashboard</span>
+    <span class="topbar-brand">Contoso &middot; Agentic Outcome-Based Modelling in Practice</span>
+    <span class="topbar-desc">An AI agent reviews Statements of Work, assesses measurability of proposed outcomes, and attributes indicative value &mdash; helping steering committees decide whether to pursue an outcome-based commercial model.</span>
   </div>
   <div class="topbar-right">
     <span class="demo-badge">Demo</span>
     <span>%%GENERATED%%</span>
     <a href="/">&#8635; Refresh</a>
   </div>
-</div>
-
-<div class="topbar-model">
-  <div class="tm-pill"><span class="tm-role">Framework</span><span class="tm-sep">/</span><span class="tm-name">Agent Value Attribution</span></div>
-  <div class="tm-pill"><span class="tm-role">Ledger</span><span class="tm-sep">/</span><span class="tm-name">Agent Value Ledger</span></div>
-  <div class="tm-pill"><span class="tm-role">Metric</span><span class="tm-sep">/</span><span class="tm-name">Indicative ROI</span></div>
-  <div class="tm-pill"><span class="tm-role">Model</span><span class="tm-sep">/</span><span class="tm-name">Economic Impact</span></div>
 </div>
 
 <div class="page">
@@ -1506,56 +1686,76 @@ code{
 <!-- ─── Cockpit title bar ─────────────────────────────── -->
 <div class="cockpit-header">
   <span class="cockpit-title">Value Steering Cockpit</span>
-  <div class="cockpit-controls">
-    <span class="cockpit-scen-label">Scenario</span>
-    <button class="roi-bar-scen" id="scen-conservative" onclick="applyScenario('conservative')">Conservative</button>
-    <button class="roi-bar-scen active" id="scen-expected" onclick="applyScenario('expected')">Expected</button>
-    <button class="roi-bar-scen" id="scen-upside" onclick="applyScenario('upside')">Upside</button>
-    <button class="roi-expand-btn" onclick="toggleRoi()" id="roi-expand-btn">&#9660;&ensp;Assumptions</button>
+  <div class="cockpit-tabs">
+    <button class="cockpit-tab active" id="tab-efficiency" onclick="switchCockpit('efficiency')">&#9203;&ensp;AI Efficiency</button>
+    <button class="cockpit-tab" id="tab-revenue" onclick="switchCockpit('revenue')">&#128200;&ensp;Revenue Potential</button>
   </div>
 </div>
 
 <!-- ─── KPI tiles ─────────────────────────────────────── -->
-<div class="kpi-row">
+<div class="kpi-row" id="kpi-efficiency">
   <div class="kpi-tile" style="--kpi-accent:%%BLUE%%">
     <div class="kpi-label">Pipeline</div>
     <div class="kpi-value">%%TOTAL_OPPS%%</div>
     <div class="kpi-sub">%%VALIDATED_CNT%% of %%TOTAL_OPPS%% through verdict (%%COVERAGE_PCT%%%)</div>
   </div>
-  <div class="kpi-tile" style="--kpi-accent:#3A5A78">
-    <div class="kpi-label">Verdict Mix</div>
-    <div class="verdict-mix-row">
-      <span class="vm-chip vm-recommend">&#10003; %%N_RECOMMEND%%</span>
-      <span class="vm-chip vm-reconsider">&#9680; %%N_RECONSIDER%%</span>
-      <span class="vm-chip vm-ruleout">&times; %%N_RULE_OUT%%</span>
-    </div>
-    <div class="verdict-mix-bar">
-      <div class="osb-seg osb-recommend" style="flex:%%N_RECOMMEND%%"></div>
-      <div class="osb-seg osb-reconsider" style="flex:%%N_RECONSIDER%%"></div>
-      <div class="osb-seg osb-ruleout" style="flex:%%N_RULE_OUT%%"></div>
-    </div>
+
+  <div class="kpi-tile" style="--kpi-accent:#7B52AB">
+    <div class="kpi-label">Potential Cost Saving Remaining</div>
+    <div class="kpi-value" style="color:#7B52AB">%%POTENTIAL_REMAINING%%&thinsp;h</div>
+    <div class="kpi-sub">%%N_RECOMMEND_ACTIVE%% recommended engagement(s) not yet closed &mdash; value still in pipeline</div>
   </div>
+
   <div class="kpi-tile" style="--kpi-accent:#1E9160">
-    <div class="kpi-label">Attributed Value</div>
+    <div class="kpi-label">Agent Attributed Value (ledger)</div>
     <div class="kpi-value" style="color:#1E9160">%%TOTAL_HOURS%%&thinsp;h</div>
     <div class="kpi-sub">%%AVG_HOURS%% h avg &middot; %%TOTAL_RUNS%% agent runs</div>
   </div>
-  <div class="kpi-tile" style="--kpi-accent:#7B52AB">
-    <div class="kpi-label">Indicative ROI</div>
-    <div class="kpi-value" style="color:#7B52AB" id="roi-anchor-val-roi">&mdash;</div>
-    <div class="kpi-sub" id="kpi-sub-payback">&mdash; payback</div>
+</div>
+
+<!-- ─── Revenue Potential KPI row ────────────────────── -->
+<div class="kpi-row" id="kpi-revenue" style="display:none">
+  <div class="kpi-tile" style="--kpi-accent:#0070AD">
+    <div class="kpi-label">Total Revenue Gain Identified</div>
+    <div class="kpi-value" style="color:#0070AD">%%TOTAL_REVENUE_GAIN%%</div>
+    <div class="kpi-sub">Estimated uplift across all %%TOTAL_OPPS%% engagements</div>
   </div>
-  <div class="kpi-tile" style="--kpi-accent:#0A5A8A">
-    <div class="kpi-label">Net Value (12 mo)</div>
-    <div class="kpi-value" style="color:#0A5A8A" id="pop-net">&mdash;</div>
-    <div class="kpi-sub"><span id="pop-gross">&mdash;</span> gross &middot; <span id="pop-opex">&mdash;</span> opex/yr</div>
+
+  <div class="kpi-tile" style="--kpi-accent:#1E9160">
+    <div class="kpi-label">Recommend &rarr; Outcome Based</div>
+    <div class="kpi-value" style="color:#1E9160">%%RECOMMEND_REVENUE%%</div>
+    <div class="kpi-sub">Revenue potential for engagements rated &lsquo;Recommend&rsquo;</div>
+  </div>
+
+  <div class="kpi-tile" style="--kpi-accent:#E8970A">
+    <div class="kpi-label">Avg Revenue Gain / Engagement</div>
+    <div class="kpi-value" style="color:#E8970A">%%AVG_REVENUE_GAIN%%</div>
+    <div class="kpi-sub">Average uplift per engagement based on agent estimates</div>
   </div>
 </div>
 
-<!-- ─── Assumptions drawer ────────────────────────────── -->
-<div class="roi-panel">
-  <div class="roi-body collapsed" id="roi-body">
-    <div class="roi-assumptions">
+<!-- ─── Financial Outlook ─────────────────────────────── -->
+<div class="fin-section" id="fin-efficiency-section">
+  <div class="fin-header">
+    <span class="fin-title">Financial Outlook &mdash; AI Efficiency</span>
+    <div class="fin-tabs">
+      <button class="fin-tab" id="fin-conservative" onclick="applyScenario('conservative')">&#9660; Conservative</button>
+      <button class="fin-tab active" id="fin-expected" onclick="applyScenario('expected')">&#9679; Expected</button>
+      <button class="fin-tab" id="fin-upside" onclick="applyScenario('upside')">&#9650; Upside</button>
+    </div>
+  </div>
+  <div class="fin-metrics">
+    <div class="fin-metric" style="--fin-accent:#0070AD"><div class="fin-metric-label">Gross Value / yr</div><div class="fin-metric-value" id="fin-gross">&mdash;</div><div class="fin-metric-sub" id="fin-gross-sub">&mdash;</div></div>
+    <div class="fin-metric" style="--fin-accent:#8BAABF"><div class="fin-metric-label">Build Cost</div><div class="fin-metric-value" id="fin-build">&mdash;</div><div class="fin-metric-sub">Initial investment</div></div>
+    <div class="fin-metric" style="--fin-accent:#8BAABF"><div class="fin-metric-label">Annual OpEx</div><div class="fin-metric-value" id="fin-opex">&mdash;</div><div class="fin-metric-sub" id="fin-opex-sub">&mdash;</div></div>
+    <div class="fin-metric" style="--fin-accent:#1E9160"><div class="fin-metric-label">Net Value</div><div class="fin-metric-value" id="fin-net">&mdash;</div><div class="fin-metric-sub">12-month net</div></div>
+    <div class="fin-metric" style="--fin-accent:#7B52AB"><div class="fin-metric-label">Indicative ROI</div><div class="fin-metric-value" id="fin-roi">&mdash;</div><div class="fin-metric-sub">Net &divide; total cost</div></div>
+    <div class="fin-metric" style="--fin-accent:#6B42A8"><div class="fin-metric-label">Payback</div><div class="fin-metric-value" id="fin-payback">&mdash;</div><div class="fin-metric-sub">Months to recover</div></div>
+  </div>
+</div>
+
+<!-- ─── Assumptions sliders ─────────────────────────────── -->
+<div class="roi-assumptions" id="roi-assumptions">
       <div class="roi-assumption">
         <label>Analyst rate (&#8364;/h)</label>
         <div class="roi-assumption-val">
@@ -1591,8 +1791,64 @@ code{
           <span id="ra-hours-val">600 h</span>
         </div>
       </div>
+</div>
+
+<!-- ─── Revenue Potential Financial Outlook ──────────────────── -->
+<div class="fin-section" id="fin-revenue-section" style="display:none">
+  <div class="fin-header">
+    <span class="fin-title">Revenue Outlook &mdash; Outcome Based Pricing</span>
+    <div class="fin-tabs">
+      <button class="fin-tab" id="rev-conservative" onclick="applyRevenueScenario('conservative')">&#9660; Conservative</button>
+      <button class="fin-tab active" id="rev-expected" onclick="applyRevenueScenario('expected')">&#9679; Expected</button>
+      <button class="fin-tab" id="rev-upside" onclick="applyRevenueScenario('upside')">&#9650; Upside</button>
     </div>
-    <div class="roi-results" id="roi-results"></div>
+  </div>
+  <div class="fin-metrics">
+    <div class="fin-metric" style="--fin-accent:#0070AD"><div class="fin-metric-label">Year-1 Revenue</div><div class="fin-metric-value" id="rev-year1">&mdash;</div><div class="fin-metric-sub" id="rev-year1-sub">&mdash;</div></div>
+    <div class="fin-metric" style="--fin-accent:#1E9160"><div class="fin-metric-label">Steady-State / yr</div><div class="fin-metric-value" id="rev-steady">&mdash;</div><div class="fin-metric-sub" id="rev-steady-sub">&mdash;</div></div>
+    <div class="fin-metric" style="--fin-accent:#7B52AB"><div class="fin-metric-label">3-Year Revenue</div><div class="fin-metric-value" id="rev-3yr">&mdash;</div><div class="fin-metric-sub">Cumulative incl. renewals</div></div>
+    <div class="fin-metric" style="--fin-accent:#E8970A"><div class="fin-metric-label">Revenue at Risk</div><div class="fin-metric-value" id="rev-risk">&mdash;</div><div class="fin-metric-sub">Identified potential not yet captured</div></div>
+    <div class="fin-metric" style="--fin-accent:#0070AD"><div class="fin-metric-label">Conversion Rate</div><div class="fin-metric-value" id="rev-conv">&mdash;</div><div class="fin-metric-sub" id="rev-conv-sub">&mdash;</div></div>
+    <div class="fin-metric" style="--fin-accent:#6B42A8"><div class="fin-metric-label">Revenue / Deal</div><div class="fin-metric-value" id="rev-deal">&mdash;</div><div class="fin-metric-sub">Avg converted engagement</div></div>
+  </div>
+</div>
+
+<!-- ─── Revenue Assumptions sliders ──────────────────────────── -->
+<div class="roi-assumptions" id="roi-revenue-assumptions" style="display:none">
+  <div class="roi-assumption">
+    <label>Conversion rate (%)</label>
+    <div class="roi-assumption-val">
+      <input type="range" id="rr-conv" min="10" max="100" step="5" value="60" oninput="updateRevenueRoi()">
+      <span id="rr-conv-val">60%</span>
+    </div>
+  </div>
+  <div class="roi-assumption">
+    <label>Revenue realisation (%)</label>
+    <div class="roi-assumption-val">
+      <input type="range" id="rr-real" min="20" max="100" step="5" value="65" oninput="updateRevenueRoi()">
+      <span id="rr-real-val">65%</span>
+    </div>
+  </div>
+  <div class="roi-assumption">
+    <label>Ramp-up (months)</label>
+    <div class="roi-assumption-val">
+      <input type="range" id="rr-ramp" min="1" max="24" step="1" value="9" oninput="updateRevenueRoi()">
+      <span id="rr-ramp-val">9 mo</span>
+    </div>
+  </div>
+  <div class="roi-assumption">
+    <label>Deal tenure (years)</label>
+    <div class="roi-assumption-val">
+      <input type="range" id="rr-tenure" min="1" max="5" step="1" value="3" oninput="updateRevenueRoi()">
+      <span id="rr-tenure-val">3 yr</span>
+    </div>
+  </div>
+  <div class="roi-assumption">
+    <label>Renewal rate (%)</label>
+    <div class="roi-assumption-val">
+      <input type="range" id="rr-renew" min="20" max="100" step="5" value="75" oninput="updateRevenueRoi()">
+      <span id="rr-renew-val">75%</span>
+    </div>
   </div>
 </div>
 
@@ -1727,8 +1983,7 @@ const LANE_CONFIG = {
   intake:          { behavior:'restart',      accepts: ['archived'] },
   scanned:         { behavior:'agent-scan',   accepts: ['intake'] },
   under_review:    { behavior:'agent-review', accepts: ['scanned'] },
-  verdict:         { behavior:'confirm',      accepts: ['under_review'] },
-  generate_report: { behavior:'agent-report', accepts: ['verdict'] },
+  generate_report: { behavior:'agent-report', accepts: ['under_review'] },
   archived:        { behavior:'direct',       accepts: ['generate_report'] },
 };
 
@@ -1766,19 +2021,19 @@ const AGENT_INFO = {
   },
   'agent-report': {
     icon: '📄',
-    title: 'Authorise Report Agent',
-    subtitle: 'The Report Agent will produce the final outcome-readiness report.',
-    desc: (engName) => `The Report Agent will generate a full outcome-readiness report for <strong>${engName}</strong> based on the human verdict and AI assessment.`,
+    title: 'Generate Instructions for Engagement Mgr',
+    subtitle: 'The agent will produce a tailored instruction package for the Engagement Manager.',
+    desc: (engName) => `The agent will generate a concise instruction package for <strong>${engName}</strong> based on the human verdict and extracted outcomes. This saves the Engagement Manager up to 5 hours of preparation.`,
     steps: [
-      'Compile AI assessment and human verdict',
-      'Draft executive summary and recommendation',
-      'Generate value attribution and KPI evidence pack',
-      'Produce stakeholder-ready PDF report',
+      'Compile extracted outcomes and human verdict',
+      'Draft action items and next steps for the Engagement Manager',
+      'Summarise KPI gaps and resolution recommendations',
+      'Produce ready-to-send instruction package',
     ],
-    confirmLabel: '📄  Run Report Agent',
-    processingLabel: 'Generating report…',
-    processingSteps: ['Loading verdict and evidence…','Drafting executive summary…','Building KPI evidence pack…','Finalising report…'],
-    resultLabel: 'Report ready',
+    confirmLabel: '📄  Generate Instructions',
+    processingLabel: 'Generating instructions…',
+    processingSteps: ['Loading verdict and evidence…','Drafting action items…','Summarising KPI gaps…','Finalising instruction package…'],
+    resultLabel: 'Instructions ready',
   },
   'confirm': {
     icon: '✓',
@@ -1837,7 +2092,7 @@ document.addEventListener('dragstart', e => {
   const blank = document.createElement('canvas');
   blank.width = blank.height = 1;
   e.dataTransfer.setDragImage(blank, 0, 0);
-  dragState = { opp: card.dataset.opp, fromLane: card.dataset.stage, card };
+  dragState = { opp: card.dataset.opp, fromLane: card.dataset.stage, card, startX: e.clientX, startY: e.clientY, didDrag: false };
   // Defer so the browser captures the original state first
   requestAnimationFrame(() => card.classList.add('dragging'));
   // Create floating ghost
@@ -1850,6 +2105,10 @@ document.addEventListener('dragstart', e => {
 document.addEventListener('dragover', e => {
   e.preventDefault();
   if (!dragState) return;
+  // Detect real drag movement
+  const dx = Math.abs(e.clientX - (dragState.startX||0));
+  const dy = Math.abs(e.clientY - (dragState.startY||0));
+  if (dx > 5 || dy > 5) dragState.didDrag = true;
   // Move ghost
   if (dragState.ghostEl) {
     dragState.ghostEl.style.left = (e.clientX - 10) + 'px';
@@ -1857,37 +2116,47 @@ document.addEventListener('dragover', e => {
   }
   // Highlight target lane
   const targetLane = e.target.closest('[data-lane]');
-  document.querySelectorAll('.lane').forEach(l => {
-    l.classList.remove('drop-target','drop-blocked','drop-blocked-sow');
-    const laneName = targetLane.dataset.lane;
-    if (laneName === dragState.fromLane) return;
-    const cfg = LANE_CONFIG[laneName];
-    const lane = targetLane.closest('.lane') || targetLane;
-    // Special guard: Intake → Scanned requires a SoW to be attached
-    const sowMissing = dragState.fromLane === 'intake' && laneName === 'scanned'
-      && dragState.card && dragState.card.dataset.hasSow !== '1';
-    if (sowMissing) {
-      lane.classList.add('drop-blocked', 'drop-blocked-sow');
-      e.dataTransfer.dropEffect = 'none';
-    } else if (cfg && cfg.accepts.includes(dragState.fromLane)) {
-      lane.classList.add('drop-target');
-      e.dataTransfer.dropEffect = 'move';
-    } else {
-      lane.classList.add('drop-blocked');
-      e.dataTransfer.dropEffect = 'none';
-    }
+  document.querySelectorAll('.lane').forEach(l => l.classList.remove('drop-target','drop-blocked','drop-blocked-sow'));
+  if (!targetLane) return;
+  const laneName = targetLane.dataset.lane;
+  if (laneName === dragState.fromLane) return;
+  const cfg = LANE_CONFIG[laneName];
+  const lane = targetLane.closest('.lane') || targetLane;
+  // Special guard: Intake → Scanned requires a SoW to be attached
+  const sowMissing = dragState.fromLane === 'intake' && laneName === 'scanned'
+    && dragState.card && dragState.card.dataset.hasSow !== '1';
+  if (sowMissing) {
+    lane.classList.add('drop-blocked', 'drop-blocked-sow');
+    e.dataTransfer.dropEffect = 'none';
+  } else if (cfg && cfg.accepts.includes(dragState.fromLane)) {
+    lane.classList.add('drop-target');
+    e.dataTransfer.dropEffect = 'move';
+  } else {
+    lane.classList.add('drop-blocked');
+    e.dataTransfer.dropEffect = 'none';
   }
 });
 
 document.addEventListener('dragleave', e => {
-  // Only clear if we've left the pipeline entirely
   const related = e.relatedTarget;
   if (!related || !related.closest('.pipeline')) {
-    document.querySelectorAll('.lane').forEach(l => l.classList.remove('drop-target','drop-blocked','drop-blocked-sow'));, e => {
+    document.querySelectorAll('.lane').forEach(l => l.classList.remove('drop-target','drop-blocked','drop-blocked-sow'));
+  }
+});
+
+document.addEventListener('dragend', e => {
   if (!dragState) return;
   dragState.card.classList.remove('dragging');
   if (dragState.ghostEl) dragState.ghostEl.remove();
   document.querySelectorAll('.lane').forEach(l => l.classList.remove('drop-target','drop-blocked','drop-blocked-sow'));
+  // If no real drag happened, fire the click manually
+  if (!dragState.didDrag) {
+    const opp = dragState.opp;
+    dragState = null;
+    openDetail(opp);
+    return;
+  }
+  dragState = null;
 });
 
 document.addEventListener('drop', e => {
@@ -1908,8 +2177,8 @@ document.addEventListener('drop', e => {
 
 // ─── Drop routing ────────────────────────────────────────────────────────────
 const LANE_LABELS = {
-  intake:'Intake', scanned:'AI Assessment', under_review:'Human Review',
-  verdict:'Verdict', generate_report:'Generate AI Report', archived:'Archived',
+  intake:'Intake', scanned:'Extract Outcomes from SoW', under_review:'Human Review',
+  generate_report:'Generate Instructions for Engagement Mgr', archived:'Archived',
 };
 
 function handleDrop(opp, fromLane, toLane, behavior) {
@@ -2146,11 +2415,19 @@ function scan(e, opp) {
   e.stopPropagation();
   const card = document.getElementById('card-'+opp);
   const btn = card ? card.querySelector('.btn-primary') : null;
-  if (btn) { btn.disabled=true; btn.textContent='⏳ Scanning…'; }
-  fetch('/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({opportunity_id:opp})})
+  if (btn) { btn.disabled=true; btn.textContent='\u23F3 Intake Agent\u2026'; }
+  // Step 1: run Intake Agent to extract title, manager, deal size
+  fetch('/intake-scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({opportunity_id:opp})})
+    .then(r => r.ok ? r.json() : Promise.reject('Intake agent unavailable'))
+    .catch(() => ({}))  // if intake agent is offline, continue without it
+    .then(() => {
+      if (btn) btn.textContent='\u23F3 Extracting outcomes\u2026';
+      // Step 2: run Outcomes Extraction Agent
+      return fetch('/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({opportunity_id:opp})});
+    })
     .then(r=>r.ok?r.json():r.text().then(t=>{throw new Error(t);}))
     .then(()=>location.reload())
-    .catch(e=>{alert('Scan failed: '+e.message);if(btn){btn.disabled=false;btn.textContent='Run AI Review →';}});
+    .catch(err=>{alert('Scan failed: '+err.message);if(btn){btn.disabled=false;btn.textContent='Run AI Review \u2192';}});
 }
 function advance(e, oppId, nextStage) {
   e.stopPropagation();
@@ -2236,12 +2513,17 @@ function openDetail(opp) {
     ? d.missing_kpis.map(k=>`<div class="detail-kpi-item">${k}</div>`).join('')
     : '<div style="font-size:.78rem;color:#1E9160;padding:.2rem 0">No gaps identified ✓</div>';
 
+  const STAGE_LABELS_SHORT = {
+    intake: 'Intake', scanned: 'Extract Outcomes', under_review: 'Human Review',
+    generate_report: 'Gen. Instructions', archived: 'Archived',
+  };
   const histHtml = (d.run_history && d.run_history.length) ? d.run_history.map(r=>{
     const rc = REC_CFG[r.recommendation]||{};
     const badge = r.recommendation?`<span style="background:${rc.bg||'#eee'};color:${rc.color||'#666'};border:1px solid ${rc.border||'#ccc'};padding:.06rem .35rem;border-radius:.25rem;font-size:.64rem;font-weight:700">${rc.icon||'·'} ${rc.label||r.recommendation}</span>`:'';
     const ts = r.created_at?r.created_at.slice(0,16).replace('T',' '):'';
     const hrs = r.hours_saved?`<span style="font-size:.68rem;color:#8BAABF;font-variant-numeric:tabular-nums">${r.hours_saved.toFixed(1)} h attributed</span>`:'';
-    return `<div class="run-history-item">${badge}<span style="font-size:.64rem;color:#AABFCC">${r.agent_name||''}</span><span style="flex:1"></span>${hrs}<span class="run-ts">${ts}</span></div>`;
+    const stageLabel = r.pipeline_status ? `<span style="font-size:.62rem;color:#8BAABF;background:#F0F4FA;border:1px solid #DDE5EF;border-radius:.22rem;padding:.04rem .3rem">${STAGE_LABELS_SHORT[r.pipeline_status]||r.pipeline_status}</span>` : '';
+    return `<div class="run-history-item">${badge}${stageLabel}<span style="font-size:.64rem;color:#AABFCC">${r.agent_name||''}</span><span style="flex:1"></span>${hrs}<span class="run-ts">${ts}</span></div>`;
   }).join('') : '<div style="font-size:.74rem;color:#AABFCC">No run history</div>';
 
   dc.innerHTML = `
@@ -2250,7 +2532,6 @@ function openDetail(opp) {
       <div class="detail-name">${d.engagement_name}</div>
       <div class="detail-verdict-row">
         <span class="detail-verdict-badge" style="background:${cfg.bg};color:${cfg.color};border:1.5px solid ${cfg.border}">${cfg.icon}&ensp;${cfg.label}</span>
-        <span class="detail-hours-badge">&#9203;&ensp;${(d.hours_saved||0).toFixed(1)}&thinsp;h Attributed Value</span>
       </div>
     </div>
     <div class="detail-body-wrap">
@@ -2286,13 +2567,15 @@ function openDetail(opp) {
             <div class="mgr-email">${mgr.email||''}</div>
           </div>
         </div>
-        <button class="btn-activate" onclick="openModal('${opp}')">&#9993;&ensp;Send Instructions to ${(mgr.name||'').split(' ')[0]||'Manager'}</button>
+        ${d.stage === 'generate_report' ? `<button class="btn-activate" onclick="openModal('${opp}')">&#9993;&ensp;Send Instructions to ${(mgr.name||'').split(' ')[0]||'Manager'}</button>` : ''}
       </div>
-      <div class="ds">
-        <div class="ds-label">Agent Value Ledger</div>
-        <div style="font-size:.72rem;color:#AAC0CC;margin-bottom:.4rem">Attributed Value entries recorded for this engagement</div>
-        ${histHtml}
-      </div>
+      ${(d.deal_size || d.revenue_gain) ? `<div class="ds">
+        <div class="ds-label">Revenue Potential</div>
+        ${d.deal_size ? `<div class="detail-rev-row"><span class="detail-rev-label">Deal Size</span><span class="detail-rev-val">${fmtEur(d.deal_size)}</span></div>` : ''}
+        ${d.revenue_gain > 0 ? `<div class="detail-rev-row"><span class="detail-rev-label">Estimated Revenue Gain (Outcome Model)</span><span class="detail-rev-val" style="color:#1E9160">${fmtEur(d.revenue_gain)}</span></div>
+        <div class="detail-rev-row"><span class="detail-rev-label">Revenue Uplift %</span><span class="detail-rev-val" style="color:#E8970A">${d.deal_size > 0 ? ((d.revenue_gain / d.deal_size) * 100).toFixed(1) + '%' : '—'}</span></div>
+        <div style="font-size:.69rem;color:#8BAABF;margin-top:.35rem">Estimated by the Outcome Extraction Agent — based on deal scope, contract model, and transformation opportunities identified in the SoW.</div>` : `<div style="font-size:.72rem;color:#AABFCC;font-style:italic">Revenue uplift estimate available after Outcome Extraction Agent runs.</div>`}
+      </div>` : ''}
     </div>`;
 
   document.getElementById('detail-overlay').classList.add('open');
@@ -2380,8 +2663,14 @@ function applyScenario(name) {
   document.getElementById('ra-opex').value  = s.opex;
   document.getElementById('ra-util').value  = s.util;
   document.getElementById('ra-hours').value = s.hours;
-  document.querySelectorAll('.roi-bar-scen').forEach(b => b.classList.remove('active'));
-  document.getElementById('scen-'+name).classList.add('active');
+  // Update label spans
+  document.getElementById('ra-rate-val').textContent  = '\u20ac' + s.rate;
+  document.getElementById('ra-build-val').textContent = '\u20ac' + s.build + 'k';
+  document.getElementById('ra-opex-val').textContent  = '\u20ac' + s.opex + 'k';
+  document.getElementById('ra-util-val').textContent  = s.util + '%';
+  document.getElementById('ra-hours-val').textContent = s.hours + ' h';
+  document.querySelectorAll('.fin-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('fin-'+name).classList.add('active');
   updateRoi();
 }
 
@@ -2389,6 +2678,18 @@ function roiFmt(n, prefix='\u20ac') {
   if (Math.abs(n) >= 1000000) return prefix + (n/1000000).toFixed(1)+'M';
   if (Math.abs(n) >= 1000)    return prefix + (n/1000).toFixed(1)+'k';
   return prefix + Math.round(n).toLocaleString();
+}
+function fmtEur(v) {
+  if (!v) return '\u20ac0';
+  if (v >= 1000000) return '\u20ac' + (v/1000000).toFixed(1) + 'M';
+  if (v >= 1000)    return '\u20ac' + Math.round(v/1000).toLocaleString() + 'k';
+  return '\u20ac' + Math.round(v).toLocaleString();
+}
+function fmtEur(v) {
+  if (!v) return '\u20ac0';
+  if (v >= 1000000) return '\u20ac' + (v/1000000).toFixed(1) + 'M';
+  if (v >= 1000)    return '\u20ac' + Math.round(v/1000).toLocaleString() + 'k';
+  return '\u20ac' + Math.round(v).toLocaleString();
 }
 
 function updateRoi() {
@@ -2435,27 +2736,21 @@ function updateRoi() {
       sub: 'Months to recover build cost', accent:'#6B42A8' },
   ];
 
-  document.getElementById('roi-results').innerHTML = metrics.map(m => `
-    <div class="roi-metric" style="--roi-accent:${m.accent}">
-      <div class="roi-metric-label">${m.label}</div>
-      <div class="roi-metric-value" style="color:${m.accent}">${m.value}</div>
-      <div class="roi-metric-sub">${m.sub}</div>
-    </div>`).join('');
-
-  // Populate KPI anchors
+  // Populate Financial Outlook metrics
   const setEl = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
   const setStyle = (id, prop, val) => { const e = document.getElementById(id); if(e) e.style[prop] = val; };
-  const paybackTxt = paybackMonths ? (paybackMonths <= 24 ? paybackMonths+' mo' : '>24 mo') : '—';
-  setEl('roi-anchor-val-roi', roi.toFixed(0)+'%');
-  setStyle('roi-anchor-val-roi', 'color', roiColor);
-  setEl('roi-anchor-val-payback', paybackTxt);
-  setStyle('roi-anchor-val-payback', 'color', '#6B42A8');
-  // Popover secondary metrics
-  setEl('pop-gross', roiFmt(grossHourValue));
-  setEl('pop-gross-sub', annualHours+' h × €'+rate+' × '+Math.round(util*100)+'%');
-  setEl('pop-net', roiFmt(netValue12m));
-  setStyle('pop-net', 'color', netColor);
-  setEl('pop-opex', roiFmt(annualOpex));
+  const paybackTxt = paybackMonths ? (paybackMonths <= 24 ? paybackMonths+'\u2009mo' : '>\u200924\u2009mo') : '\u2014';
+  setEl('fin-gross', roiFmt(grossHourValue));
+  setEl('fin-gross-sub', annualHours+' h/yr \u00d7 \u20ac'+rate+' \u00d7 '+Math.round(util*100)+'% util');
+  setEl('fin-build', roiFmt(build));
+  setEl('fin-opex', roiFmt(annualOpex));
+  setEl('fin-opex-sub', '\u20ac'+(opex/1000).toFixed(0)+'k/mo \u00d7 12');
+  setEl('fin-net', roiFmt(netValue12m));
+  setStyle('fin-net', 'color', netColor);
+  setEl('fin-roi', roi.toFixed(0)+'%');
+  setStyle('fin-roi', 'color', roiColor);
+  setEl('fin-payback', paybackTxt);
+  setStyle('fin-payback', 'color', '#6B42A8');
 }
 
 function closeDetail(e) {
@@ -2530,12 +2825,27 @@ function handleModalDrop(e) {
   }
 }
 
-function toggleRoi() {
-  const body = document.getElementById('roi-body');
-  const btn  = document.getElementById('roi-expand-btn');
-  const collapsed = body.classList.toggle('collapsed');
-  btn.innerHTML = collapsed ? '&#9660;&ensp;Assumptions' : '&#9650;&ensp;Assumptions';
-  if (!collapsed) updateRoi();
+// ─── Remove card ─────────────────────────────────────────────────────────────
+function removeCard(e, opp) {
+  e.stopPropagation();
+  if (!confirm('Remove ' + opp + ' from the pipeline entirely? This cannot be undone.')) return;
+  fetch('/remove', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({opportunity_id:opp})})
+    .then(r => {
+      if (r.ok) {
+        const card = document.getElementById('card-' + opp);
+        if (card) card.remove();
+        if (activeOpp === opp) {
+          document.getElementById('detail-overlay').classList.remove('open');
+          document.body.style.overflow = '';
+          activeOpp = null;
+        }
+        delete DETAILS[opp];
+        showToast('\u2713 ' + opp + ' removed from pipeline');
+      } else {
+        showToast('\u26a0 Remove failed — please try again');
+      }
+    })
+    .catch(() => showToast('\u26a0 Network error — remove failed'));
 }
 
 // ─── Toast ───────────────────────────────────────────────────────────────────
@@ -2544,9 +2854,89 @@ function showToast(msg) {
   setTimeout(()=>t.classList.remove('show'),3500);
 }
 
+// ─── Revenue data from server ────────────────────────────────────────────────
+const TOTAL_REVENUE_RAW    = %%TOTAL_REVENUE_RAW%%;
+const RECOMMEND_REVENUE_RAW = %%RECOMMEND_REVENUE_RAW%%;
+
+// ─── Revenue scenarios ───────────────────────────────────────────────────────
+const REVENUE_SCENARIOS = {
+  conservative: { conv: 40, real: 50, ramp: 12, tenure: 2, renew: 55 },
+  expected:     { conv: 60, real: 65, ramp:  9, tenure: 3, renew: 75 },
+  upside:       { conv: 80, real: 85, ramp:  5, tenure: 4, renew: 90 },
+};
+
+function applyRevenueScenario(name) {
+  const s = REVENUE_SCENARIOS[name];
+  if (!s) return;
+  document.getElementById('rr-conv').value   = s.conv;
+  document.getElementById('rr-real').value   = s.real;
+  document.getElementById('rr-ramp').value   = s.ramp;
+  document.getElementById('rr-tenure').value = s.tenure;
+  document.getElementById('rr-renew').value  = s.renew;
+  document.getElementById('rr-conv-val').textContent   = s.conv + '%';
+  document.getElementById('rr-real-val').textContent   = s.real + '%';
+  document.getElementById('rr-ramp-val').textContent   = s.ramp + ' mo';
+  document.getElementById('rr-tenure-val').textContent = s.tenure + ' yr';
+  document.getElementById('rr-renew-val').textContent  = s.renew + '%';
+  document.querySelectorAll('#fin-revenue-section .fin-tab').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('rev-' + name);
+  if (btn) btn.classList.add('active');
+  updateRevenueRoi();
+}
+
+function updateRevenueRoi() {
+  const conv   = +document.getElementById('rr-conv').value   / 100;
+  const real   = +document.getElementById('rr-real').value   / 100;
+  const ramp   = +document.getElementById('rr-ramp').value;
+  const tenure = +document.getElementById('rr-tenure').value;
+  const renew  = +document.getElementById('rr-renew').value  / 100;
+  document.getElementById('rr-conv-val').textContent   = Math.round(conv*100) + '%';
+  document.getElementById('rr-real-val').textContent   = Math.round(real*100) + '%';
+  document.getElementById('rr-ramp-val').textContent   = ramp + ' mo';
+  document.getElementById('rr-tenure-val').textContent = tenure + ' yr';
+  document.getElementById('rr-renew-val').textContent  = Math.round(renew*100) + '%';
+  // Year-1: recommend pipeline × conv × real × ramp-adjusted fraction of year
+  const rampFactor = 1 - (ramp / 24);
+  const year1 = RECOMMEND_REVENUE_RAW * conv * real * rampFactor;
+  // Steady-state: full pipeline × conv × real
+  const steady = TOTAL_REVENUE_RAW * conv * real;
+  // 3-year: Y1 + Y2 + Y3 with renewal decay
+  const year2  = steady * renew;
+  const year3  = steady * renew * renew;
+  const rev3yr = year1 + year2 + year3;
+  // At risk = recommend pool not yet converted
+  const revRisk = RECOMMEND_REVENUE_RAW - (RECOMMEND_REVENUE_RAW * conv * real);
+  // Avg per converted deal
+  const nDeals = RECOMMEND_REVENUE_RAW > 0 ? Math.max(1, Math.round(RECOMMEND_REVENUE_RAW / 300000)) : 1;
+  const perDeal = year1 > 0 ? (year1 / (nDeals * conv || 1)) : 0;
+  const setEl = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
+  const setStyle = (id, prop, v) => { const e = document.getElementById(id); if(e) e.style[prop] = v; };
+  setEl('rev-year1',     roiFmt(year1));
+  setEl('rev-year1-sub', Math.round(conv*100)+'% conv \u00d7 '+Math.round(real*100)+'% realised, '+ramp+' mo ramp');
+  setEl('rev-steady',    roiFmt(steady));
+  setEl('rev-steady-sub', 'Full pipeline at '+Math.round(conv*100)+'% conversion');
+  setEl('rev-3yr',       roiFmt(rev3yr));
+  setEl('rev-risk',      roiFmt(Math.max(0, revRisk)));
+  setStyle('rev-risk', 'color', revRisk > 0 ? '#E8970A' : '#1E9160');
+  setEl('rev-conv',      Math.round(conv*100)+'%');
+  setEl('rev-conv-sub',  Math.round(real*100)+'% of identified gain captured per deal');
+  setEl('rev-deal',      roiFmt(perDeal));
+}
+
 // ─── Init ────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+function switchCockpit(tab) {
+  document.getElementById('kpi-efficiency').style.display    = tab === 'efficiency' ? '' : 'none';
+  document.getElementById('kpi-revenue').style.display       = tab === 'revenue'    ? '' : 'none';
+  document.getElementById('fin-efficiency-section').style.display = tab === 'efficiency' ? '' : 'none';
+  document.getElementById('roi-assumptions').style.display        = tab === 'efficiency' ? '' : 'none';
+  document.getElementById('fin-revenue-section').style.display    = tab === 'revenue'    ? '' : 'none';
+  document.getElementById('roi-revenue-assumptions').style.display = tab === 'revenue'   ? '' : 'none';
+  document.querySelectorAll('.cockpit-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+window.addEventListener('load', () => {
   applyScenario('expected');
+  applyRevenueScenario('expected');
 });
 </script>
 </body>
@@ -2588,9 +2978,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
-        if self.path == "/upload":  self._handle_upload();  return
-        if self.path == "/scan":    self._handle_scan();    return
-        if self.path == "/advance": self._handle_advance(); return
+        if self.path == "/upload":       self._handle_upload();       return
+        if self.path == "/intake-scan":  self._handle_intake_scan();  return
+        if self.path == "/scan":         self._handle_scan();         return
+        if self.path == "/advance":      self._handle_advance();      return
+        if self.path == "/remove":       self._handle_remove();       return
         self.send_response(404); self.end_headers()
 
     def _handle_upload(self):
@@ -2635,11 +3027,82 @@ class Handler(BaseHTTPRequestHandler):
         stub = {"run_id": str(_uuid.uuid4()), "opportunity_id": opp_id,
                 "engagement_name": eng_name, "recommendation": None, "status": "draft"}
         log_run(stub, DB_PATH, pipeline_status="intake", sow_text=sow_text)
-        try:    result = call_agent_with_text(opp_id, eng_name, sow_text)
+        # Run Intake Agent first to extract title/manager/deal_size
+        deal_size = 0
+        try:
+            intake_result = call_intake_agent(opp_id, sow_text)
+            deal_size = intake_result.get("deal_size") or 0
+            new_title = (intake_result.get("engagement_title") or "").strip()
+            mgr_name  = (intake_result.get("engagement_manager") or "").strip()
+            con2 = sqlite3.connect(DB_PATH)
+            ensure_columns(con2)
+            mgr_obj = get_manager(opp_id)
+            if mgr_name: mgr_obj["name"] = mgr_name
+            con2.execute("""
+                UPDATE runs
+                   SET engagement_name    = CASE WHEN ? != '' THEN ? ELSE engagement_name END,
+                       deal_size          = ?,
+                       intake_enriched    = 1,
+                       engagement_manager = ?
+                 WHERE opportunity_id = ?
+            """, (new_title, new_title, deal_size, json.dumps(mgr_obj), opp_id))
+            con2.commit(); con2.close()
+            if new_title: eng_name = new_title
+        except Exception:
+            pass  # intake agent offline — continue without enrichment
+        try:    result = call_agent_with_text(opp_id, eng_name, sow_text, deal_size=deal_size or None)
         except Exception as e: self._respond(500, f"Agent failed: {e}"); return
         try:    log_run(result, DB_PATH, pipeline_status="scanned", sow_text=sow_text)
         except Exception as e: self._respond(500, f"DB write failed: {e}"); return
         self._json_respond(200, result)
+
+    def _handle_intake_scan(self):
+        """Run the Intake Agent: extracts title, manager, deal_size from stored SoW."""
+        length  = int(self.headers.get("Content-Length", 0))
+        payload = json.loads(self.rfile.read(length))
+        opp_id  = payload.get("opportunity_id", "").strip()
+        if not opp_id:
+            self._respond(400, "opportunity_id required"); return
+        con = sqlite3.connect(DB_PATH)
+        row = con.execute(
+            "SELECT sow_text FROM runs WHERE opportunity_id=? ORDER BY created_at DESC LIMIT 1",
+            (opp_id,)).fetchone()
+        con.close()
+        if not row or not (row[0] or "").strip():
+            self._respond(400, "No SoW text stored"); return
+        sow_text = row[0]
+        try:
+            result = call_intake_agent(opp_id, sow_text)
+        except Exception as e:
+            self._respond(500, f"Intake agent failed: {e}"); return
+        new_title = (result.get("engagement_title") or "").strip()
+        mgr_name  = (result.get("engagement_manager") or "").strip()
+        deal_size = result.get("deal_size") or 0
+        con = sqlite3.connect(DB_PATH)
+        ensure_columns(con)
+        existing_row = con.execute(
+            "SELECT engagement_manager FROM runs WHERE opportunity_id=? ORDER BY created_at DESC LIMIT 1",
+            (opp_id,)).fetchone()
+        existing_mgr = {}
+        if existing_row and existing_row[0]:
+            try: existing_mgr = json.loads(existing_row[0])
+            except: pass
+        if mgr_name:
+            existing_mgr["name"] = mgr_name
+        con.execute("""
+            UPDATE runs
+               SET engagement_name    = CASE WHEN ? != '' THEN ? ELSE engagement_name END,
+                   deal_size          = ?,
+                   intake_enriched    = 1,
+                   engagement_manager = ?
+             WHERE opportunity_id = ?
+        """, (new_title, new_title, deal_size, json.dumps(existing_mgr), opp_id))
+        con.commit(); con.close()
+        self._json_respond(200, {
+            "engagement_title":   new_title,
+            "engagement_manager": mgr_name,
+            "deal_size":          deal_size,
+        })
 
     def _handle_scan(self):
         length  = int(self.headers.get("Content-Length", 0))
@@ -2648,13 +3111,13 @@ class Handler(BaseHTTPRequestHandler):
         if not opp_id: self._respond(400, "opportunity_id required"); return
         con = sqlite3.connect(DB_PATH)
         row = con.execute(
-            "SELECT engagement_name, sow_text FROM runs WHERE opportunity_id=? ORDER BY created_at DESC LIMIT 1",
+            "SELECT engagement_name, sow_text, deal_size FROM runs WHERE opportunity_id=? ORDER BY created_at DESC LIMIT 1",
             (opp_id,)).fetchone()
         con.close()
         if not row or not (row[1] or "").strip():
             self._respond(400, "No SoW text stored — upload via the form"); return
-        eng_name, sow_text = row
-        try:    result = call_agent_with_text(opp_id, eng_name, sow_text)
+        eng_name, sow_text, deal_size = row[0], row[1], (row[2] or 0)
+        try:    result = call_agent_with_text(opp_id, eng_name, sow_text, deal_size=deal_size or None)
         except Exception as e: self._respond(500, f"Agent failed: {e}"); return
         try:    log_run(result, DB_PATH, pipeline_status="scanned", sow_text=sow_text)
         except Exception as e: self._respond(500, f"DB write failed: {e}"); return
@@ -2678,6 +3141,18 @@ class Handler(BaseHTTPRequestHandler):
                 """, (opp_id,))
             else:
                 con.execute("UPDATE runs SET pipeline_status=? WHERE opportunity_id=?", (stage, opp_id))
+            con.commit(); con.close()
+            self.send_response(200); self.end_headers()
+        else:
+            self.send_response(400); self.end_headers()
+
+    def _handle_remove(self):
+        length  = int(self.headers.get("Content-Length", 0))
+        payload = json.loads(self.rfile.read(length))
+        opp_id  = payload.get("opportunity_id")
+        if opp_id:
+            con = sqlite3.connect(DB_PATH)
+            con.execute("DELETE FROM runs WHERE opportunity_id=?", (opp_id,))
             con.commit(); con.close()
             self.send_response(200); self.end_headers()
         else:

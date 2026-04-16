@@ -64,7 +64,8 @@ The JSON must conform exactly to this schema:
   ],
   "recommendation":    "<'recommend' | 'reconsider' | 'rule_out'>",
   "status":            "draft",
-  "hours_saved":       <float — estimated analyst hours saved by this automated review, typically 1.5–6.0>
+  "hours_saved":       <float — estimated analyst hours saved by this automated review, typically 1.5–6.0>,
+  "revenue_gain":      <float — estimated additional annual revenue (€) Contoso could earn by moving this engagement to outcome-based pricing. Base your estimate on the contract scope, engagement size, current model (T&M/fixed-price), and the transformation_opportunities identified. Typical range: 50000–2000000. Use 0 only if there is genuinely no revenue upside.>
 }
 
 transformation_opportunities guidance:
@@ -77,6 +78,13 @@ Scoring guidance for hours_saved:
 - A fully measurable engagement with clear outcomes and KPIs: 4.0–6.0 hours saved
 - A partially measurable engagement needing moderate manual work: 2.0–3.5 hours saved
 - A low-measurability or rules-out engagement needing heavy manual follow-up: 1.0–2.0 hours saved
+
+Scoring guidance for revenue_gain:
+- "recommend" engagements — large contract scope with multiple outcome levers: €500k–€2M
+- "recommend" engagements — single-service or moderate scope: €100k–€500k
+- "reconsider" engagements — partial upside if model is refined: €50k–€200k
+- "rule_out" engagements — minimal to zero upside: €0–€50k
+- Scale with contract size hints (headcount, phases, duration) where present in the SoW.
 
 Recommendation logic:
 - "recommend"   : ≥2 measurable outcomes, measurability high, <2 missing KPIs
