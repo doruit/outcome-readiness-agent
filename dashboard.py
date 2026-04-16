@@ -307,11 +307,7 @@ def card_html(row: dict) -> str:
     cfg           = REC_CONFIG.get(rec, {})
 
     advance_label = {
-        "scanned":             "Send to Analyst",
-        "under_review":        "Approve",
-        "needs_clarification": "Return for Re-scope",
-        "validated":           "Archive",
-        "rejected":            "Archive",
+        "generate_report": "Archive",
     }.get(stage, "")
 
     advance_btn = ""
@@ -537,7 +533,7 @@ body{
 }
 
 /* ─── Page ───────────────────────────────────────────────────────── */
-.page{padding:1rem 1.5rem 4rem;max-width:1680px;margin:0 auto}
+.page{padding:1rem 0 4rem;width:100%}
 
 /* ─── Topbar model taxonomy ───────────────────────────────── */
 .topbar-model{
@@ -557,44 +553,43 @@ body{
 .tm-name{font-size:.68rem;font-weight:500;color:#6A8AA4}
 .tm-sep{font-size:.6rem;color:#1E3450}
 
+/* ─── Cockpit header ─────────────────────────────────────────────── */
+.cockpit-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.6rem 1.4rem;border-bottom:1px solid #DDE5EF;
+  background:""" + CAP_NAVY + r""";
+}
+.cockpit-title{
+  font-size:.78rem;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:#fff;
+}
+.cockpit-controls{display:flex;align-items:center;gap:.35rem}
+.cockpit-scen-label{
+  font-size:.6rem;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:rgba(255,255,255,.5);margin-right:.25rem;
+}
+
 /* ─── KPI row ────────────────────────────────────────────────────── */
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);background:#fff;border-bottom:1px solid #DDE5EF}
-.kpi-tile{padding:.9rem 1.4rem .8rem;position:relative;overflow:hidden;border-right:1px solid #DDE5EF}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);background:#fff;border-bottom:1px solid #DDE5EF}
+.kpi-tile{padding:.75rem 1.2rem .7rem;position:relative;overflow:hidden;border-right:1px solid #DDE5EF}
 .kpi-tile:last-child{border-right:none}
 .kpi-tile::after{
   content:'';position:absolute;bottom:0;left:0;right:0;height:3px;
   background:var(--kpi-accent,""" + CAP_BLUE + r""");
 }
-.kpi-label{font-size:.64rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#5A7A96;margin-bottom:.28rem}
-.kpi-value{font-size:1.6rem;font-weight:800;line-height:1;color:var(--kpi-accent,""" + CAP_NAVY + r""");letter-spacing:-.02em}
-.kpi-sub{font-size:.68rem;color:#607A94;margin-top:.25rem;line-height:1.4}
+.kpi-label{font-size:.6rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#5A7A96;margin-bottom:.22rem}
+.kpi-value{font-size:1.5rem;font-weight:800;line-height:1;color:var(--kpi-accent,""" + CAP_NAVY + r""");letter-spacing:-.02em}
+.kpi-sub{font-size:.65rem;color:#607A94;margin-top:.2rem;line-height:1.4}
 
-/* ─── Outcome verdict strip ──────────────────────────────────────── */
-.outcome-strip{
-  display:flex;align-items:center;gap:0;
-  padding:0 1.4rem;height:38px;
-  border-bottom:1px solid #DDE5EF;background:#FAFCFE;
-}
-.outcome-strip-label{
-  font-size:.62rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
-  color:#5A7A96;white-space:nowrap;flex-shrink:0;
-  padding-right:.9rem;border-right:1px solid #DDE5EF;margin-right:1.2rem;
-}
-.outcome-strip-verdicts{display:flex;align-items:center;gap:0;flex-shrink:0}
-.osv{
-  display:flex;align-items:center;gap:.3rem;
-  padding:0 1rem;border-right:1px solid #DDE5EF;height:38px;
-}
-.osv:last-child{border-right:none}
-.osv-icon{font-size:.7rem;font-weight:700;flex-shrink:0}
-.osv-count{font-size:.92rem;font-weight:800;letter-spacing:-.01em;line-height:1}
-.osv-label{font-size:.63rem;color:#7A96B0;margin-left:.1rem}
-.osv-recommend .osv-icon,.osv-recommend .osv-count{color:#1A6B3C}
-.osv-reconsider .osv-icon,.osv-reconsider .osv-count{color:#92530C}
-.osv-ruleout .osv-icon,.osv-ruleout .osv-count{color:#9B1C1C}
-.outcome-strip-bar{
-  flex:1;height:4px;border-radius:2px;
-  display:flex;overflow:hidden;gap:2px;margin-left:1.2rem;
+/* ─── Verdict mix (inside KPI tile) ──────────────────────────────── */
+.verdict-mix-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem}
+.vm-chip{font-size:.82rem;font-weight:800;letter-spacing:-.01em;display:flex;align-items:center;gap:.15rem}
+.vm-recommend{color:#1A6B3C}
+.vm-reconsider{color:#92530C}
+.vm-ruleout{color:#9B1C1C}
+.verdict-mix-bar{
+  height:4px;border-radius:2px;
+  display:flex;overflow:hidden;gap:2px;
 }
 .osb-seg{height:100%;border-radius:2px;min-width:3px}
 .osb-recommend{background:#2D9E6B}
@@ -602,7 +597,7 @@ body{
 .osb-ruleout{background:#D94040}
 
 /* ─── Section header ─────────────────────────────────────────────── */
-.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem;padding:0 1.5rem}
 .section-title{font-size:.76rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#3A5A78}
 
 /* ─── Intake panel ───────────────────────────────────────────────── */
@@ -710,15 +705,15 @@ body{
   border-radius:.7rem;
   box-shadow:0 2px 8px rgba(14,30,56,.07),0 8px 28px rgba(14,30,56,.05);
   overflow:hidden;
-  margin-top:.8rem;
+  margin:0 1.5rem;
 }
-.left-col{min-width:0;display:flex;flex-direction:column}
-.board-section{margin-top:.3rem}
-.board-scroll{overflow-x:auto;padding:.2rem 1rem .75rem}
+.board-section{margin-top:.5rem}
+.board-scroll{overflow-x:auto;padding:.2rem 0 .75rem}
 .pipeline{
   display:grid;
-  grid-template-columns:repeat(7,minmax(160px,1fr));
-  gap:.8rem;min-width:1120px;
+  grid-template-columns:repeat(6,minmax(160px,1fr));
+  gap:.75rem;min-width:960px;
+  padding:0 1.5rem;
 }
 
 /* ─── Lane ───────────────────────────────────────────────────────── */
@@ -737,7 +732,7 @@ body{
   font-size:.84rem;font-weight:700;
   color:""" + CAP_NAVY + r""";flex:1;
   letter-spacing:.01em;min-width:0;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  white-space:normal;
 }
 .lane-count{
   background:rgba(0,0,0,.09);
@@ -1164,78 +1159,24 @@ code{
 }
 .footer{margin-top:3rem;text-align:center;font-size:.74rem;color:#AAC0CC}
 
-/* ─── ROI summary bar ────────────────────────────────────── */
+/* ─── ROI panel (assumptions drawer only) ────────────────── */
 .roi-panel{border-bottom:1px solid #DDE5EF}
-.roi-bar{
-  display:flex;align-items:center;gap:0;
-  padding:0 1.4rem;height:52px;flex-wrap:nowrap;
-  overflow:visible;
-}
-.roi-bar-label{
-  font-size:.62rem;font-weight:700;letter-spacing:.07em;
-  text-transform:uppercase;color:#5A7A96;
-  white-space:nowrap;flex-shrink:0;
-  padding-right:.9rem;border-right:1px solid #DDE5EF;margin-right:1rem;
-}
-.roi-bar-metrics{display:flex;align-items:center;gap:0;flex:1;min-width:0}
-/* Legacy small metrics (hidden, kept for compat) */
-.roi-bar-metric{display:none}
-.roi-bar-val{font-size:.9rem;font-weight:700;letter-spacing:-.02em;color:#0E1E38}
-.roi-bar-lbl{font-size:.62rem;color:#7A96B0;white-space:nowrap}
-/* Primary KPI anchors */
-.roi-anchor{
-  display:flex;flex-direction:column;justify-content:center;
-  padding:0 1.1rem;border-right:1px solid #DDE5EF;
-  min-width:0;flex-shrink:0;
-}
-.roi-anchor:first-child{padding-left:0}
-.roi-anchor-val{
-  font-size:1.35rem;font-weight:800;letter-spacing:-.04em;line-height:1.05;
-  color:#0E1E38;
-}
-.roi-anchor-lbl{font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#7A96B0;margin-top:.06rem}
-/* Details trigger */
-.roi-detail-trigger{
-  position:relative;display:flex;align-items:center;margin-left:.6rem;flex-shrink:0;
-}
-.roi-detail-btn{
-  font-size:.61rem;font-weight:600;color:#5A7A96;cursor:pointer;
-  background:none;border:1px solid #DDE5EF;border-radius:.25rem;
-  padding:.15rem .45rem;white-space:nowrap;transition:all .12s;
-  display:flex;align-items:center;gap:.2rem;
-}
-.roi-detail-btn:hover{background:#F0F4FA;color:#1E3450}
-.roi-detail-popover{
-  display:none;position:fixed;
-  background:#fff;border:1px solid #DDE5EF;border-radius:.5rem;
-  box-shadow:0 8px 24px rgba(14,30,56,.14);
-  padding:.7rem .8rem;z-index:300;min-width:240px;
-  grid-template-columns:1fr 1fr 1fr;gap:.5rem;
-  pointer-events:none;
-}
-.roi-detail-trigger:hover .roi-detail-popover,
-.roi-detail-trigger:focus-within .roi-detail-popover{display:grid;pointer-events:auto}
-.roi-popover-metric{display:flex;flex-direction:column;gap:.1rem}
-.roi-popover-label{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#3A5470}
-.roi-popover-val{font-size:.88rem;font-weight:700;color:#0E1E38;letter-spacing:-.02em}
-.roi-popover-sub{font-size:.62rem;color:#6A8AA4;line-height:1.3}
-.roi-bar-scenarios{display:flex;align-items:center;gap:.25rem;margin-left:auto;padding-left:1rem;flex-shrink:0;position:relative;z-index:400}
 .roi-bar-scen{
-  padding:.15rem .5rem;border-radius:9999px;
-  font-size:.62rem;font-weight:600;cursor:pointer;
-  border:1px solid #C8D4E0;background:transparent;color:#607A96;
+  padding:.18rem .55rem;border-radius:9999px;
+  font-size:.6rem;font-weight:600;cursor:pointer;
+  border:1px solid rgba(255,255,255,.25);background:transparent;color:rgba(255,255,255,.65);
   transition:all .13s;letter-spacing:.01em;
 }
-.roi-bar-scen.active{background:#0E1E38;border-color:#0E1E38;color:#fff}
-.roi-bar-scen:hover:not(.active){background:#F0F4FA}
+.roi-bar-scen.active{background:#fff;border-color:#fff;color:#0E1E38}
+.roi-bar-scen:hover:not(.active){background:rgba(255,255,255,.12)}
 .roi-expand-btn{
-  font-size:.62rem;font-weight:600;color:#5A7A96;
-  background:none;border:1px solid #DDE5EF;
-  border-radius:.3rem;padding:.15rem .5rem;
+  font-size:.6rem;font-weight:600;color:rgba(255,255,255,.55);
+  background:none;border:1px solid rgba(255,255,255,.2);
+  border-radius:.3rem;padding:.18rem .55rem;
   cursor:pointer;white-space:nowrap;flex-shrink:0;
-  margin-left:.5rem;transition:all .12s;
+  margin-left:.4rem;transition:all .12s;
 }
-.roi-expand-btn:hover{background:#F0F4FA;color:#1E3450}
+.roi-expand-btn:hover{background:rgba(255,255,255,.12);color:#fff}
 .roi-body{
   padding:.8rem 1.4rem .9rem;
   border-top:1px solid #DDE5EF;
@@ -1504,34 +1445,34 @@ code{
 
 /* Wide — 1400 px + : give board more room */
 @media(min-width:1400px){
-  .pipeline{grid-template-columns:repeat(7,minmax(170px,1fr))}
+  .pipeline{grid-template-columns:repeat(6,minmax(190px,1fr))}
 }
 
 /* Medium — below 1200px */
 @media(max-width:1199px){
-  .combined-panel{margin-top:1rem}
-  .board-section{margin-top:1rem}
-  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  .combined-panel{margin:0 .75rem}
+  .board-section{margin-top:.75rem}
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
 }
 
 /* Tablet — below 900px */
 @media(max-width:899px){
-  .page{padding:1.25rem 1.25rem 4rem}
+  .page{padding:1.25rem 0 4rem}
   .kpi-row{grid-template-columns:repeat(2,1fr)}
-  .pipeline{grid-template-columns:repeat(7,minmax(150px,1fr));min-width:1050px}
+  .pipeline{grid-template-columns:repeat(6,minmax(150px,1fr));min-width:900px}
 }
 
 /* Small — below 600px */
 @media(max-width:599px){
   .topbar{padding:.6rem 1rem}
   .topbar-title{display:none}
-  .page{padding:1rem 1rem 4rem}
+  .page{padding:1rem 0 4rem}
   .kpi-row{grid-template-columns:repeat(2,1fr);gap:.65rem}
   .kpi-value{font-size:1.75rem}
   .intake-form{flex-direction:column}
   .drop-zone{min-width:0}
-  .board-scroll{margin:0 -1rem;padding:0 1rem .75rem}
-  .pipeline{grid-template-columns:repeat(7,minmax(138px,1fr));min-width:966px}
+  .board-scroll{padding:0 .75rem .75rem}
+  .pipeline{grid-template-columns:repeat(6,minmax(138px,1fr));min-width:840px}
   .detail-name{font-size:.95rem}
 }
 </style>
@@ -1542,7 +1483,7 @@ code{
   <div class="topbar-left">
     <span class="topbar-brand">Contoso</span>
     <span class="topbar-sep">·</span>
-    <span class="topbar-title">Outcome Readiness Review &mdash; Agent Value Attribution Pipeline</span>
+    <span class="topbar-title">Value Steering Dashboard</span>
   </div>
   <div class="topbar-right">
     <span class="demo-badge">Demo</span>
@@ -1562,94 +1503,57 @@ code{
 
 <div class="combined-panel">
 
-<div class="left-col">
+<!-- ─── Cockpit title bar ─────────────────────────────── -->
+<div class="cockpit-header">
+  <span class="cockpit-title">Value Steering Cockpit</span>
+  <div class="cockpit-controls">
+    <span class="cockpit-scen-label">Scenario</span>
+    <button class="roi-bar-scen" id="scen-conservative" onclick="applyScenario('conservative')">Conservative</button>
+    <button class="roi-bar-scen active" id="scen-expected" onclick="applyScenario('expected')">Expected</button>
+    <button class="roi-bar-scen" id="scen-upside" onclick="applyScenario('upside')">Upside</button>
+    <button class="roi-expand-btn" onclick="toggleRoi()" id="roi-expand-btn">&#9660;&ensp;Assumptions</button>
+  </div>
+</div>
 
+<!-- ─── KPI tiles ─────────────────────────────────────── -->
 <div class="kpi-row">
   <div class="kpi-tile" style="--kpi-accent:%%BLUE%%">
-    <div class="kpi-label">Engagements in scope</div>
+    <div class="kpi-label">Pipeline</div>
     <div class="kpi-value">%%TOTAL_OPPS%%</div>
-    <div class="kpi-sub">Unique SoWs assessed</div>
+    <div class="kpi-sub">%%VALIDATED_CNT%% of %%TOTAL_OPPS%% through verdict (%%COVERAGE_PCT%%%)</div>
   </div>
-  <div class="kpi-tile" style="--kpi-accent:%%COVERAGE_COLOR%%">
-    <div class="kpi-label">Validated coverage</div>
-    <div class="kpi-value" style="color:%%COVERAGE_COLOR%%">%%COVERAGE_PCT%%%</div>
-    <div class="kpi-sub">%%VALIDATED_CNT%% of %%TOTAL_OPPS%% with confirmed verdict</div>
+  <div class="kpi-tile" style="--kpi-accent:#3A5A78">
+    <div class="kpi-label">Verdict Mix</div>
+    <div class="verdict-mix-row">
+      <span class="vm-chip vm-recommend">&#10003; %%N_RECOMMEND%%</span>
+      <span class="vm-chip vm-reconsider">&#9680; %%N_RECONSIDER%%</span>
+      <span class="vm-chip vm-ruleout">&times; %%N_RULE_OUT%%</span>
+    </div>
+    <div class="verdict-mix-bar">
+      <div class="osb-seg osb-recommend" style="flex:%%N_RECOMMEND%%"></div>
+      <div class="osb-seg osb-reconsider" style="flex:%%N_RECONSIDER%%"></div>
+      <div class="osb-seg osb-ruleout" style="flex:%%N_RULE_OUT%%"></div>
+    </div>
   </div>
   <div class="kpi-tile" style="--kpi-accent:#1E9160">
     <div class="kpi-label">Attributed Value</div>
     <div class="kpi-value" style="color:#1E9160">%%TOTAL_HOURS%%&thinsp;h</div>
-    <div class="kpi-sub">Across %%TOTAL_RUNS%% agent runs</div>
+    <div class="kpi-sub">%%AVG_HOURS%% h avg &middot; %%TOTAL_RUNS%% agent runs</div>
   </div>
+  <div class="kpi-tile" style="--kpi-accent:#7B52AB">
+    <div class="kpi-label">Indicative ROI</div>
+    <div class="kpi-value" style="color:#7B52AB" id="roi-anchor-val-roi">&mdash;</div>
+    <div class="kpi-sub" id="kpi-sub-payback">&mdash; payback</div>
   </div>
-</div>
-
-<!-- ─── Outcome verdict strip ────────────────────────── -->
-<div class="outcome-strip">
-  <span class="outcome-strip-label">Commercial Outcome Readiness</span>
-  <div class="outcome-strip-verdicts">
-    <div class="osv osv-recommend">
-      <span class="osv-icon">&#10003;</span>
-      <span class="osv-count">%%N_RECOMMEND%%</span>
-      <span class="osv-label">Recommend</span>
-    </div>
-    <div class="osv osv-reconsider">
-      <span class="osv-icon">&#9680;</span>
-      <span class="osv-count">%%N_RECONSIDER%%</span>
-      <span class="osv-label">Reconsider</span>
-    </div>
-    <div class="osv osv-ruleout">
-      <span class="osv-icon">&times;</span>
-      <span class="osv-count">%%N_RULE_OUT%%</span>
-      <span class="osv-label">Rule Out</span>
-    </div>
-  </div>
-  <div class="outcome-strip-bar">
-    <div class="osb-seg osb-recommend" style="flex:%%N_RECOMMEND%%"></div>
-    <div class="osb-seg osb-reconsider" style="flex:%%N_RECONSIDER%%"></div>
-    <div class="osb-seg osb-ruleout" style="flex:%%N_RULE_OUT%%"></div>
+  <div class="kpi-tile" style="--kpi-accent:#0A5A8A">
+    <div class="kpi-label">Net Value (12 mo)</div>
+    <div class="kpi-value" style="color:#0A5A8A" id="pop-net">&mdash;</div>
+    <div class="kpi-sub"><span id="pop-gross">&mdash;</span> gross &middot; <span id="pop-opex">&mdash;</span> opex/yr</div>
   </div>
 </div>
 
+<!-- ─── Assumptions drawer ────────────────────────────── -->
 <div class="roi-panel">
-  <div class="roi-bar">
-    <span class="roi-bar-label">Indicative ROI</span>
-    <div class="roi-bar-metrics" id="roi-bar-metrics">
-      <div class="roi-anchor" id="roi-anchor-roi">
-        <div class="roi-anchor-val" id="roi-anchor-val-roi">—</div>
-        <div class="roi-anchor-lbl">ROI</div>
-      </div>
-      <div class="roi-anchor" id="roi-anchor-payback" style="border-right:none">
-        <div class="roi-anchor-val" id="roi-anchor-val-payback">—</div>
-        <div class="roi-anchor-lbl">Payback</div>
-      </div>
-      <div class="roi-detail-trigger" tabindex="0">
-        <button class="roi-detail-btn">Details &#9662;</button>
-        <div class="roi-detail-popover" id="roi-detail-popover">
-          <div class="roi-popover-metric">
-            <span class="roi-popover-label">Gross value/yr</span>
-            <span class="roi-popover-val" id="pop-gross">—</span>
-            <span class="roi-popover-sub" id="pop-gross-sub"></span>
-          </div>
-          <div class="roi-popover-metric">
-            <span class="roi-popover-label">Net (12 mo)</span>
-            <span class="roi-popover-val" id="pop-net">—</span>
-            <span class="roi-popover-sub" id="pop-net-sub">Gross minus total cost</span>
-          </div>
-          <div class="roi-popover-metric">
-            <span class="roi-popover-label">Annual OpEx</span>
-            <span class="roi-popover-val" id="pop-opex">—</span>
-            <span class="roi-popover-sub" id="pop-opex-sub">Monthly &#215; 12</span>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="roi-bar-scenarios">
-      <button class="roi-bar-scen" id="scen-conservative" onclick="applyScenario('conservative')">Conservative</button>
-      <button class="roi-bar-scen active" id="scen-expected" onclick="applyScenario('expected')">Expected</button>
-      <button class="roi-bar-scen" id="scen-upside" onclick="applyScenario('upside')">Upside</button>
-    </div>
-    <button class="roi-expand-btn" onclick="toggleRoi()" id="roi-expand-btn">&#9660;&ensp;Assumptions</button>
-  </div>
   <div class="roi-body collapsed" id="roi-body">
     <div class="roi-assumptions">
       <div class="roi-assumption">
@@ -1691,8 +1595,6 @@ code{
     <div class="roi-results" id="roi-results"></div>
   </div>
 </div>
-
-</div><!-- /left-col -->
 
 </div><!-- /combined-panel -->
 
@@ -1740,8 +1642,8 @@ code{
 
 <div class="board-section">
   <div class="section-header">
-    <span class="section-title">Agent Value Attribution Pipeline</span>
-    <span style="font-size:.72rem;color:#AAC0CC">Click any card to open the detail view &rarr;</span>
+    <span class="section-title">Engagement Pipeline</span>
+    <span style="font-size:.72rem;font-weight:500;color:#3A5A78;background:#EDF4FA;border:1px solid #C8D8E8;border-radius:.35rem;padding:.15rem .65rem">&#128065;&ensp;Click any card to open detail view</span>
   </div>
   <div class="board-scroll">
     <div class="pipeline">%%BOARD_HTML%%</div>
@@ -2645,16 +2547,6 @@ function showToast(msg) {
 // ─── Init ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   applyScenario('expected');
-  // Position the detail popover using fixed coords on trigger hover
-  const trigger = document.querySelector('.roi-detail-trigger');
-  const popover = document.getElementById('roi-detail-popover');
-  if (trigger && popover) {
-    trigger.addEventListener('mouseenter', () => {
-      const r = trigger.getBoundingClientRect();
-      popover.style.top  = (r.bottom + 6) + 'px';
-      popover.style.left = r.left + 'px';
-    });
-  }
 });
 </script>
 </body>
