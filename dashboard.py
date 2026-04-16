@@ -1334,6 +1334,22 @@ code{
   outline-offset:3px;
   border-radius:.35rem;
 }
+/* SoW-missing block: amber tone + inline hint */
+.lane.drop-blocked-sow{
+  background:rgba(180,110,0,.05);
+  border-color:#C97B00;
+  box-shadow:0 0 0 2px rgba(201,123,0,.22);
+}
+.lane.drop-blocked-sow .lane-cards{
+  outline:2px dashed rgba(201,123,0,.35);
+  outline-offset:3px;
+  border-radius:.35rem;
+}
+.lane.drop-blocked-sow .lane-header::after{
+  content:'\00a0\2014 attach a SoW first';
+  font-size:.68rem;font-weight:400;
+  color:#C97B00;letter-spacing:.01em;
+}
 /* Drop indicator line inside lane */
 .drop-indicator{
   height:3px;background:""" + CAP_BLUE + r""";
@@ -1910,14 +1926,18 @@ document.addEventListener('dragover', e => {
   // Highlight target lane
   const targetLane = e.target.closest('[data-lane]');
   document.querySelectorAll('.lane').forEach(l => {
-    l.classList.remove('drop-target','drop-blocked');
-  });
-  if (targetLane) {
+    l.classList.remove('drop-target','drop-blocked','drop-blocked-sow');
     const laneName = targetLane.dataset.lane;
     if (laneName === dragState.fromLane) return;
     const cfg = LANE_CONFIG[laneName];
     const lane = targetLane.closest('.lane') || targetLane;
-    if (cfg && cfg.accepts.includes(dragState.fromLane)) {
+    // Special guard: Intake → Scanned requires a SoW to be attached
+    const sowMissing = dragState.fromLane === 'intake' && laneName === 'scanned'
+      && dragState.card && dragState.card.dataset.hasSow !== '1';
+    if (sowMissing) {
+      lane.classList.add('drop-blocked', 'drop-blocked-sow');
+      e.dataTransfer.dropEffect = 'none';
+    } else if (cfg && cfg.accepts.includes(dragState.fromLane)) {
       lane.classList.add('drop-target');
       e.dataTransfer.dropEffect = 'move';
     } else {
@@ -1931,16 +1951,11 @@ document.addEventListener('dragleave', e => {
   // Only clear if we've left the pipeline entirely
   const related = e.relatedTarget;
   if (!related || !related.closest('.pipeline')) {
-    document.querySelectorAll('.lane').forEach(l => l.classList.remove('drop-target','drop-blocked'));
-  }
-});
-
-document.addEventListener('dragend', e => {
+    document.querySelectorAll('.lane').forEach(l => l.classList.remove('drop-target','drop-blocked','drop-blocked-sow'));, e => {
   if (!dragState) return;
   dragState.card.classList.remove('dragging');
   if (dragState.ghostEl) dragState.ghostEl.remove();
-  document.querySelectorAll('.lane').forEach(l => l.classList.remove('drop-target','drop-blocked'));
-  dragState = null;
+  document.querySelectorAll('.lane').forEach(l => l.classList.remove('drop-target','drop-blocked','drop-blocked-sow'));
 });
 
 document.addEventListener('drop', e => {
@@ -1969,6 +1984,15 @@ const LANE_LABELS = {
 function handleDrop(opp, fromLane, toLane, behavior) {
   const d = DETAILS[opp] || {};
   const engName = d.engagement_name || opp;
+  // Guard: Intake → Scanned requires a SoW
+  if (fromLane === 'intake' && toLane === 'scanned') {
+    const card = document.getElementById('card-' + opp);
+    const hasSow = card && card.dataset.hasSow === '1';
+    if (!hasSow) {
+      showToast('📎 Attach a SoW before sending this engagement to AI review.');
+      return;
+    }
+  }
   if (behavior === 'direct') {
     doAdvance(opp, toLane, null);
   } else if (behavior === 'agent-scan' || behavior === 'agent-review' || behavior === 'confirm') {
@@ -2027,18 +2051,12 @@ function executeApprovedAction(opp, fromLane, toLane, behavior) {
     return;
   }
   if (behavior === 'agent-scan') {
-    // Move to scanned first (so card appears in lane), then simulate agent
+    // Move to scanned first (so card appears in lane), then run the real scan
     doAdvance(opp, 'scanned', null, /*silent*/ true);
-    // Check if there's SoW text
-    const card = document.getElementById('card-' + opp);
-    const hasSow = card && card.dataset.hasSow === '1';
-    if (hasSow) {
-      startAgentProcessing(opp, 'agent-scan', () => {
-        doScanCall(opp);
-      });
-    } else {
-      startAgentProcessing(opp, 'agent-scan', null, /*simulate*/true);
-    }
+    // SoW presence was already enforced by handleDrop — always run the real scan
+    startAgentProcessing(opp, 'agent-scan', () => {
+      doScanCall(opp);
+    });
   } else if (behavior === 'agent-review') {
     doAdvance(opp, 'under_review', null, /*silent*/ true);
     startAgentProcessing(opp, 'agent-review', null, /*simulate*/true);
