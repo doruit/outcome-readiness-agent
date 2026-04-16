@@ -124,33 +124,30 @@ def call_agent_with_text(opp_id, eng_name, sow_text):
 # Pipeline stages
 # ---------------------------------------------------------------------------
 STAGES = [
-    ("intake",              "Intake",               "Awaiting agent scan"),
-    ("scanned",             "AI Assessment",        "Automated scan complete — verdict ready"),
-    ("under_review",        "Analyst Review",       "Human analyst reviewing AI assessment"),
-    ("needs_clarification", "Clarification Required","Returned — SoW needs more information"),
-    ("validated",           "Approved",             "Analyst confirmed — counts toward coverage"),
-    ("rejected",            "Ruled Out",            "Not suitable for outcome-based model"),
-    ("archived",            "Archived",             "Engagement closed"),
+    ("intake",          "Intake",              "Awaiting SoW and agent scan"),
+    ("scanned",         "AI Assessment",       "Automated scan complete — verdict ready"),
+    ("under_review",    "Human Review",        "Human reviewer assessing AI output"),
+    ("verdict",         "Verdict",             "Human verdict recorded — ready for report"),
+    ("generate_report", "Generate AI Report",  "AI report agent producing final output"),
+    ("archived",        "Archived",            "Engagement closed"),
 ]
 STAGE_KEYS = [s[0] for s in STAGES]
 
 ADVANCE_TO = {
-    "intake":              "scanned",
-    "scanned":             "under_review",
-    "under_review":        "validated",
-    "needs_clarification": "intake",
-    "validated":           "archived",
-    "rejected":            "archived",
+    "intake":          "scanned",
+    "scanned":         "under_review",
+    "under_review":    "verdict",
+    "verdict":         "generate_report",
+    "generate_report": "archived",
 }
 
 STAGE_COLOR = {
-    "intake":              "#8BAABF",
-    "scanned":             CAP_BLUE,
-    "under_review":        "#7B52AB",
-    "needs_clarification": "#E8970A",
-    "validated":           "#2D9E6B",
-    "rejected":            "#D94040",
-    "archived":            "#B0B0B0",
+    "intake":          "#8BAABF",
+    "scanned":         CAP_BLUE,
+    "under_review":    "#7B52AB",
+    "verdict":         "#2D9E6B",
+    "generate_report": "#E8970A",
+    "archived":        "#B0B0B0",
 }
 
 REC_CONFIG = {
@@ -256,7 +253,7 @@ def load_data(db_path: str) -> dict:
     total_hours   = round(sum(r.get("hours_saved") or 0 for r in latest), 1)
     avg_hours     = round(total_hours / len(latest), 1) if latest else 0
     total_opps    = len(latest)
-    validated_cnt = len(buckets.get("validated", []))
+    validated_cnt = len(buckets.get("generate_report", [])) + len(buckets.get("archived", []))
     coverage_pct  = round(validated_cnt / total_opps * 100) if total_opps else 0
     outcome_ready = len([r for r in latest if r.get("recommendation") == "recommend"])
     n_recommend  = len([r for r in latest if r.get("recommendation") == "recommend"])
@@ -388,18 +385,21 @@ def build_detail_payload(row: dict, run_history: dict) -> dict:
                      "should remain T&M or fixed-fee unless the scope is restructured.")
 
     mgr_first = (mgr.get("name") or "the engagement manager").split()[0]
-    if stage in ("scanned", "under_review"):
-        next_action = ("Analyst review required. Validate the agent verdict, review detected "
-                       "outcomes, and either approve or flag for clarification.")
-    elif stage == "needs_clarification":
-        next_action = (f"Contact {mgr_first} to facilitate client re-scoping. Draft targeted "
-                       "KPI questions using the gaps identified below.")
-    elif stage == "validated":
-        next_action = ("Verdict validated. Engagement counts toward portfolio coverage. "
-                       f"Consider activating {mgr_first} with detailed transformation instructions.")
-    elif stage == "rejected":
-        next_action = ("Engagement ruled out. Log rationale and schedule a re-scoping "
-                       f"conversation with {mgr_first} if the client relationship allows.")
+    if stage == "scanned":
+        next_action = ("AI Assessment complete. Human review required — validate the agent verdict, "
+                       "review detected outcomes, and record a verdict.")
+    elif stage == "under_review":
+        next_action = (f"Under human review by {mgr_first}. Record a verdict to proceed to "
+                       "report generation.")
+    elif stage == "verdict":
+        next_action = ("Verdict recorded. Trigger the AI Report agent to produce the final "
+                       "outcome-readiness report for stakeholder delivery.")
+    elif stage == "generate_report":
+        next_action = ("AI report generation in progress. Review and distribute the final report, "
+                       "then archive the engagement.")
+    elif stage == "archived":
+        next_action = ("Engagement archived. Drag back to Intake to restart the process "
+                       "with a new or revised SoW.")
     else:
         next_action = "Review pending."
 
@@ -868,9 +868,8 @@ body{
 }
 
 /* Card state coloring */
-.stage-needs-clarification{background:#FEFBF3;border-color:#EDD080}
-.stage-validated{background:#F3FCF7;border-color:#9ED5B2}
-.stage-rejected{background:#FEF5F5;border-color:#ECAAAA}
+.stage-verdict{background:#F3FCF7;border-color:#9ED5B2}
+.stage-generate-report{background:#FEF8EC;border-color:#F0C860}
 .stage-archived{opacity:.58;pointer-events:auto}
 
 /* Card buttons */
@@ -1817,17 +1816,18 @@ let activeOpp = null;
 // behavior:
 //   'direct'       – move card immediately, no agent, no confirm
 //   'confirm'      – ask user to confirm, no agent call
-//   'agent-scan'   – HITL confirm → call /scan endpoint → simulated processing
-//   'agent-review' – HITL confirm → call /advance to under_review → simulated review
+//   'restart'      – HITL confirm → /advance to intake (clears AI data server-side)
+//   'agent-scan'   – HITL confirm → call /scan endpoint → real agent processing
+//   'agent-review' – HITL confirm → move to under_review → simulated processing
+//   'agent-report' – HITL confirm → move to generate_report → simulated processing
 //   'blocked'      – cannot drop here
 const LANE_CONFIG = {
-  intake:              { behavior:'direct',       accepts: ['needs_clarification','rejected'] },
-  scanned:             { behavior:'agent-scan',   accepts: ['intake','under_review','needs_clarification'] },
-  under_review:        { behavior:'agent-review', accepts: ['scanned','needs_clarification'] },
-  needs_clarification: { behavior:'direct',       accepts: ['under_review','scanned'] },
-  validated:           { behavior:'confirm',      accepts: ['under_review','scanned'] },
-  rejected:            { behavior:'confirm',      accepts: ['under_review','scanned','needs_clarification'] },
-  archived:            { behavior:'direct',       accepts: ['validated','rejected'] },
+  intake:          { behavior:'restart',      accepts: ['archived'] },
+  scanned:         { behavior:'agent-scan',   accepts: ['intake'] },
+  under_review:    { behavior:'agent-review', accepts: ['scanned'] },
+  verdict:         { behavior:'confirm',      accepts: ['under_review'] },
+  generate_report: { behavior:'agent-report', accepts: ['verdict'] },
+  archived:        { behavior:'direct',       accepts: ['generate_report'] },
 };
 
 const AGENT_INFO = {
@@ -1849,19 +1849,34 @@ const AGENT_INFO = {
   },
   'agent-review': {
     icon: '📋',
-    title: 'Authorise Review Agent',
-    subtitle: 'The Review Agent will perform a deep commercial analysis.',
-    desc: (engName) => `The engagement <strong>${engName}</strong> will be moved to Analyst Review and the AI Review Agent will conduct a detailed commercial assessment.`,
+    title: 'Authorise Human Review',
+    subtitle: 'Move to Human Review so an analyst can validate the AI assessment.',
+    desc: (engName) => `The engagement <strong>${engName}</strong> will be moved to Human Review. An analyst will validate the AI assessment and record a verdict.`,
     steps: [
-      'Review prior scan verdict and evidence',
-      'Assess commercial model viability in depth',
-      'Evaluate KPI measurability and baseline availability',
-      'Produce a reviewed recommendation and next-action plan',
+      'Transfer AI assessment to human reviewer',
+      'Analyst validates detected outcomes and KPI gaps',
+      'Analyst records a verdict (recommend / reconsider / rule out)',
     ],
-    confirmLabel: '📋  Start Review Agent',
-    processingLabel: 'Reviewing engagement…',
-    processingSteps: ['Loading scan results…','Assessing commercial model…','Evaluating KPI gaps…','Writing recommendation…'],
-    resultLabel: 'Review ready',
+    confirmLabel: '📋  Start Human Review',
+    processingLabel: 'Transferring to Human Review…',
+    processingSteps: ['Loading AI assessment…','Preparing reviewer briefing…','Notifying analyst…'],
+    resultLabel: 'Ready for human review',
+  },
+  'agent-report': {
+    icon: '📄',
+    title: 'Authorise Report Agent',
+    subtitle: 'The Report Agent will produce the final outcome-readiness report.',
+    desc: (engName) => `The Report Agent will generate a full outcome-readiness report for <strong>${engName}</strong> based on the human verdict and AI assessment.`,
+    steps: [
+      'Compile AI assessment and human verdict',
+      'Draft executive summary and recommendation',
+      'Generate value attribution and KPI evidence pack',
+      'Produce stakeholder-ready PDF report',
+    ],
+    confirmLabel: '📄  Run Report Agent',
+    processingLabel: 'Generating report…',
+    processingSteps: ['Loading verdict and evidence…','Drafting executive summary…','Building KPI evidence pack…','Finalising report…'],
+    resultLabel: 'Report ready',
   },
   'confirm': {
     icon: '✓',
@@ -1873,6 +1888,21 @@ const AGENT_INFO = {
       'Update engagement status for portfolio reporting',
     ],
     confirmLabel: '✓  Confirm Move',
+    processingLabel: null,
+    processingSteps: [],
+    resultLabel: null,
+  },
+  'restart': {
+    icon: '🔄',
+    title: 'Restart Engagement',
+    subtitle: 'This will clear all AI analysis and return the card to Intake.',
+    desc: (engName) => `<strong>${engName}</strong> will be returned to <strong>Intake</strong>. All AI assessment data, verdict, and attributed value will be cleared. The engagement can then be re-scanned with a new or revised SoW.`,
+    steps: [
+      'Clear AI assessment, verdict, and attributed value',
+      'Reset engagement to Intake stage',
+      'SoW attachment preserved — re-run AI review to restart',
+    ],
+    confirmLabel: '🔄  Restart from Intake',
     processingLabel: null,
     processingSteps: [],
     resultLabel: null,
@@ -1976,9 +2006,8 @@ document.addEventListener('drop', e => {
 
 // ─── Drop routing ────────────────────────────────────────────────────────────
 const LANE_LABELS = {
-  intake:'Intake', scanned:'AI Assessment', under_review:'Analyst Review',
-  needs_clarification:'Clarification Required', validated:'Approved',
-  rejected:'Ruled Out', archived:'Archived',
+  intake:'Intake', scanned:'AI Assessment', under_review:'Human Review',
+  verdict:'Verdict', generate_report:'Generate AI Report', archived:'Archived',
 };
 
 function handleDrop(opp, fromLane, toLane, behavior) {
@@ -1995,7 +2024,10 @@ function handleDrop(opp, fromLane, toLane, behavior) {
   }
   if (behavior === 'direct') {
     doAdvance(opp, toLane, null);
-  } else if (behavior === 'agent-scan' || behavior === 'agent-review' || behavior === 'confirm') {
+  } else if (behavior === 'restart') {
+    // Archived → Intake: confirm then clear AI data server-side
+    openHitl(opp, fromLane, toLane, behavior, engName);
+  } else if (behavior === 'agent-scan' || behavior === 'agent-review' || behavior === 'agent-report' || behavior === 'confirm') {
     openHitl(opp, fromLane, toLane, behavior, engName);
   }
 }
@@ -2005,10 +2037,10 @@ let hitlPending = null;
 
 function openHitl(opp, fromLane, toLane, behavior, engName) {
   hitlPending = { opp, fromLane, toLane, behavior };
-  const info = behavior === 'confirm'
-    ? { ...AGENT_INFO.confirm,
-        desc: () => AGENT_INFO.confirm.desc(engName, LANE_LABELS[toLane]),
-        steps: AGENT_INFO.confirm.steps }
+  const info = (behavior === 'confirm' || behavior === 'restart')
+    ? { ...AGENT_INFO[behavior],
+        desc: () => AGENT_INFO[behavior].desc(engName, LANE_LABELS[toLane]),
+        steps: AGENT_INFO[behavior].steps }
     : AGENT_INFO[behavior];
 
   document.getElementById('hitl-agent-icon').textContent = info.icon;
@@ -2046,7 +2078,7 @@ document.getElementById('hitl-overlay').addEventListener('click', e => {
 
 // ─── Execute approved action ─────────────────────────────────────────────────
 function executeApprovedAction(opp, fromLane, toLane, behavior) {
-  if (behavior === 'confirm') {
+  if (behavior === 'confirm' || behavior === 'restart') {
     doAdvance(opp, toLane, null);
     return;
   }
@@ -2060,6 +2092,9 @@ function executeApprovedAction(opp, fromLane, toLane, behavior) {
   } else if (behavior === 'agent-review') {
     doAdvance(opp, 'under_review', null, /*silent*/ true);
     startAgentProcessing(opp, 'agent-review', null, /*simulate*/true);
+  } else if (behavior === 'agent-report') {
+    doAdvance(opp, 'generate_report', null, /*silent*/ true);
+    startAgentProcessing(opp, 'agent-report', null, /*simulate*/true);
   }
 }
 
@@ -2740,7 +2775,17 @@ class Handler(BaseHTTPRequestHandler):
         stage   = payload.get("pipeline_status")
         if opp_id and stage in STAGE_KEYS:
             con = sqlite3.connect(DB_PATH)
-            con.execute("UPDATE runs SET pipeline_status=? WHERE opportunity_id=?", (stage, opp_id))
+            if stage == "intake":
+                # Restart: clear all AI-generated analysis so the card is clean
+                con.execute("""
+                    UPDATE runs SET pipeline_status='intake',
+                        recommendation=NULL, hours_saved=NULL, summary=NULL,
+                        detected_outcomes=NULL, missing_kpis=NULL,
+                        transformation_opportunities=NULL, value_attribution=NULL
+                    WHERE opportunity_id=?
+                """, (opp_id,))
+            else:
+                con.execute("UPDATE runs SET pipeline_status=? WHERE opportunity_id=?", (stage, opp_id))
             con.commit(); con.close()
             self.send_response(200); self.end_headers()
         else:
