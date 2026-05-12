@@ -104,6 +104,7 @@ def init_run_tracker(db_path: str = "runs.db") -> None:
             detected_outcomes           TEXT,
             missing_kpis                TEXT,
             transformation_opportunities TEXT,
+            agentic_opportunities       TEXT,
             created_at                  TEXT DEFAULT (datetime('now'))
         )
     """)

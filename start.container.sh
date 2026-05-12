@@ -2,7 +2,9 @@
 # Container entrypoint: runs the 2 agent servers + dashboard in one container.
 set -euo pipefail
 
-cd /app
+APP_DIR="${APP_DIR:-$(pwd)}"
+cd "$APP_DIR"
+PYTHON_EXEC="${PYTHON_EXEC:-${PYTHON:-python3}}"
 
 PORT="${PORT:-5050}"
 HOST="${HOST:-0.0.0.0}"
@@ -14,7 +16,7 @@ mkdir -p "$(dirname "$DB_PATH")"
 
 # Always initialise schema (CREATE TABLE IF NOT EXISTS is idempotent).
 echo "[init] ensuring schema in $DB_PATH"
-python - <<PY
+${PYTHON_EXEC} - <<PY
 import sqlite3, os
 db = os.environ["DB_PATH"]
 con = sqlite3.connect(db)
@@ -31,6 +33,7 @@ con.execute("""
         detected_outcomes            TEXT,
         missing_kpis                 TEXT,
         transformation_opportunities TEXT,
+        agentic_opportunities        TEXT,
         created_at                   TEXT DEFAULT (datetime('now'))
     )
 """)
@@ -41,12 +44,12 @@ PY
 
 # Seed from sample_sows.json if the runs table is empty (fresh revision).
 echo "[seed] checking if sample SoWs need to be loaded"
-python - <<'PY'
+${PYTHON_EXEC} - <<'PY'
 import sqlite3, json, os, uuid
 from datetime import datetime, timezone
 
 db        = os.environ["DB_PATH"]
-sows_path = "/app/sample_sows.json"
+sows_path = f"{os.environ.get('APP_DIR', '') or '/app'}/sample_sows.json"
 
 con = sqlite3.connect(db)
 count = con.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
@@ -78,6 +81,7 @@ needed = {
     "reviewer_role":       "TEXT",
     "human_approved":      "INTEGER DEFAULT 0",
     "agent_name":          "TEXT",
+    "agentic_opportunities":"TEXT",
 }
 for col, ddl in needed.items():
     if col not in existing:
@@ -111,15 +115,15 @@ term() {
 trap term INT TERM
 
 echo "[run] scan agent   → :${SCAN_PORT}"
-python agent.py &
+${PYTHON_EXEC} agent.py &
 SCAN_PID=$!
 
 echo "[run] intake agent → :${INTAKE_PORT}"
-python agents/intake_agent.py &
+${PYTHON_EXEC} agents/intake_agent.py &
 INTAKE_PID=$!
 
 # brief wait so the agents bind before the dashboard starts accepting traffic
 sleep 3
 
 echo "[run] dashboard    → http://${HOST}:${PORT}"
-exec python dashboard.py --port "$PORT" --host "$HOST" --db "$DB_PATH"
+exec ${PYTHON_EXEC} dashboard.py --port "$PORT" --host "$HOST" --db "$DB_PATH"

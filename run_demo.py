@@ -51,6 +51,7 @@ def ensure_schema() -> None:
         ("detected_outcomes",            "TEXT"),
         ("missing_kpis",                 "TEXT"),
         ("transformation_opportunities", "TEXT"),
+        ("agentic_opportunities",       "TEXT"),
         ("sow_text",                     "TEXT"),
         ("agent_name",                   "TEXT"),
         ("value_attribution",            "TEXT"),
@@ -154,9 +155,9 @@ def log_run(result: dict, sow: dict | None = None) -> None:
         INSERT OR REPLACE INTO runs
             (run_id, opportunity_id, engagement_name, recommendation,
              status, pipeline_status, hours_saved, created_at, foundry_conv_id,
-             summary, detected_outcomes, missing_kpis, transformation_opportunities,
+             summary, detected_outcomes, missing_kpis, transformation_opportunities, agentic_opportunities,
              agent_name, value_attribution)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             result.get("run_id"),
@@ -172,6 +173,7 @@ def log_run(result: dict, sow: dict | None = None) -> None:
             json.dumps(result.get("detected_outcomes") or []),
             json.dumps(result.get("missing_kpis") or []),
             json.dumps(result.get("transformation_opportunities") or []),
+            json.dumps(result.get("agentic_opportunities") or []),
             result.get("agent_name", "scan-agent"),
             json.dumps(result.get("value_attribution") or {}),
         ),

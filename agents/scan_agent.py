@@ -69,6 +69,17 @@ Return ONLY a single valid JSON object — no prose, no markdown fences.
       "rationale":         "<1–2 sentences on why this element suits outcome pricing and what risk-share mechanism would work>"
     }
   ],
+  "agentic_opportunities": [
+    {
+      "task":             "<concrete delivery task or workflow step — cite the SoW section/phase>",
+      "current_owner":    "<Analyst | Consultant | Manager | Client | Mixed>",
+      "agent_pattern":    "<assistant | autonomous-agent | RAG | workflow-orchestrator | classifier | extractor>",
+      "value_driver":     "<hours_saved | cycle_time | quality | scale | risk_reduction>",
+      "estimated_hours_saved_per_month": <float — realistic monthly delivery-side hours an agent could remove>,
+      "feasibility":      "<'high' | 'medium' | 'low'>",
+      "rationale":        "<1–2 sentences: why this is a strong agent candidate and what the simplest MVP would look like>"
+    }
+  ],
   "recommendation":    "<'recommend' | 'reconsider'>",
   "status":            "draft",
   "hours_saved":       <float 1.0–6.0>,
@@ -91,6 +102,14 @@ transformation_opportunities:
 - ALWAYS include at least one entry (even for 'reconsider' cases).
 - One entry per distinct billable element; cite SoW section by name where possible.
 - suggested_outcome must contain a number, percentage, or threshold — never vague.
+
+agentic_opportunities:
+- DISTINCT from transformation_opportunities. Transformation = how Contoso *prices* the engagement. Agentic = where AI agents could *automate or augment delivery work*.
+- Look for repetitive cognitive tasks with structured I/O: data extraction, document review, status reporting, ticket triage, control testing, KPI monitoring, briefing generation, contract clause comparison.
+- Avoid: one-off strategic judgements, legal sign-offs, client-relationship moments, work already automated.
+- Prefer 'assistant' or 'RAG' when a human stays in the loop; reserve 'autonomous-agent' for high-volume, well-bounded tasks.
+- estimated_hours_saved_per_month must be defensible — base it on team size and task frequency in the SoW.
+- ALWAYS return at least one entry; if nothing qualifies, return one entry with feasibility='low' and explain why.
 
 recommendation logic:
   'recommend'  : measurability=high AND ≥2 detected outcomes AND <2 missing KPIs

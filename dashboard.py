@@ -258,6 +258,7 @@ def ensure_columns(con):
         ("detected_outcomes",            "TEXT"),
         ("missing_kpis",                 "TEXT"),
         ("transformation_opportunities", "TEXT"),
+        ("agentic_opportunities",       "TEXT"),
         ("sow_text",                     "TEXT"),
         ("agent_name",                   "TEXT"),
         ("value_attribution",            "TEXT"),
@@ -328,11 +329,11 @@ def log_run(result: dict, db_path: str, pipeline_status: str = "scanned", sow_te
         INSERT OR REPLACE INTO runs
             (run_id, opportunity_id, engagement_name, recommendation,
              status, pipeline_status, hours_saved, created_at,
-             summary, detected_outcomes, missing_kpis, transformation_opportunities,
+             summary, detected_outcomes, missing_kpis, transformation_opportunities, agentic_opportunities,
              sow_text, agent_name, value_attribution, engagement_manager, revenue_gain,
              deal_size, intake_enriched,
              reviewer_remarks, reviewer_name, reviewer_role, human_approved)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
         result.get("run_id"), opp_id, result.get("engagement_name"),
         result.get("recommendation"), result.get("status", "draft"),
@@ -342,6 +343,7 @@ def log_run(result: dict, db_path: str, pipeline_status: str = "scanned", sow_te
         json.dumps(result.get("detected_outcomes") or []),
         json.dumps(result.get("missing_kpis") or []),
         json.dumps(result.get("transformation_opportunities") or []),
+        json.dumps(result.get("agentic_opportunities") or []),
         sow_text or "", result.get("agent_name", ""),
         json.dumps(result.get("value_attribution") or {}),
         json.dumps(mgr),
@@ -372,7 +374,7 @@ def load_data(db_path: str) -> dict:
     latest = [dict(r) for r in latest]
 
     for row in latest:
-        for col in ("detected_outcomes", "missing_kpis", "transformation_opportunities"):
+        for col in ("detected_outcomes", "missing_kpis", "transformation_opportunities", "agentic_opportunities"):
             raw = row.get(col)
             if isinstance(raw, str):
                 try:    row[col] = json.loads(raw)
@@ -632,6 +634,7 @@ def build_detail_payload(row: dict, run_history: dict) -> dict:
         "detected_outcomes":         _parse_json_list(row.get("detected_outcomes")),
         "missing_kpis":              _parse_json_list(row.get("missing_kpis")),
         "transformation_opportunities": _parse_json_list(row.get("transformation_opportunities")),
+        "agentic_opportunities": _parse_json_list(row.get("agentic_opportunities")),
         "hours_saved":               row.get("hours_saved") or 0,
         "deal_size":                 row.get("deal_size") or get_deal_size(opp),
         "revenue_gain":              row.get("revenue_gain") or 0,
@@ -1891,13 +1894,13 @@ code{
 <div class="cockpit-header">
   <span class="cockpit-title">Value Steering Cockpit</span>
   <div class="cockpit-tabs">
-    <button class="cockpit-tab active" id="tab-efficiency" onclick="switchCockpit('efficiency')">&#129302;&ensp;AI Based SoW Analysis</button>
-    <button class="cockpit-tab" id="tab-revenue" onclick="switchCockpit('revenue')">&#128200;&ensp;Outcome Based Revenue Uplift Potential</button>
+    <button class="cockpit-tab" id="tab-efficiency" onclick="switchCockpit('efficiency')">&#129302;&ensp;AI Based SoW Analysis</button>
+    <button class="cockpit-tab active" id="tab-revenue" onclick="switchCockpit('revenue')">&#128200;&ensp;Outcome Based Revenue Uplift Potential</button>
   </div>
 </div>
 
 <!-- ─── KPI tiles ─────────────────────────────────────── -->
-<div class="kpi-row" id="kpi-efficiency">
+<div class="kpi-row" id="kpi-efficiency" style="display:none">
   <div class="kpi-tile" style="--kpi-accent:%%BLUE%%">
     <div class="kpi-label">Pipeline</div>
     <div class="kpi-value">%%TOTAL_OPPS%%</div>
@@ -1918,7 +1921,7 @@ code{
 </div>
 
 <!-- ─── Revenue Potential KPI row ────────────────────── -->
-<div class="kpi-row" id="kpi-revenue" style="display:none">
+<div class="kpi-row" id="kpi-revenue">
   <div class="kpi-tile" style="--kpi-accent:#0070AD">
     <div class="kpi-label">Total Revenue Gain Identified</div>
     <div class="kpi-value" id="kpi-rev-total" style="color:#0070AD">%%TOTAL_REVENUE_GAIN%%</div>
@@ -1939,7 +1942,7 @@ code{
 </div>
 
 <!-- ─── Financial Outlook ─────────────────────────────── -->
-<div class="fin-section" id="fin-efficiency-section">
+<div class="fin-section" id="fin-efficiency-section" style="display:none">
   <div class="fin-header">
     <span class="fin-title">Financial Outlook &mdash; AI Efficiency</span>
     <div class="fin-tabs">
@@ -1959,7 +1962,7 @@ code{
 </div>
 
 <!-- ─── Assumptions sliders ─────────────────────────────── -->
-<div class="roi-assumptions" id="roi-assumptions">
+<div class="roi-assumptions" id="roi-assumptions" style="display:none">
       <div class="roi-assumption">
         <label>Analyst rate (&#8364;/h)</label>
         <div class="roi-assumption-val">
@@ -1998,7 +2001,7 @@ code{
 </div>
 
 <!-- ─── Revenue Potential Financial Outlook ──────────────────── -->
-<div class="fin-section" id="fin-revenue-section" style="display:none">
+<div class="fin-section" id="fin-revenue-section">
   <div class="fin-header">
     <span class="fin-title">Revenue Outlook &mdash; Outcome Based Pricing</span>
     <div class="fin-tabs">
@@ -2018,7 +2021,7 @@ code{
 </div>
 
 <!-- ─── Revenue Assumptions sliders ──────────────────────────── -->
-<div class="roi-assumptions" id="roi-revenue-assumptions" style="display:none">
+<div class="roi-assumptions" id="roi-revenue-assumptions">
   <div class="roi-assumption">
     <label>Conversion rate (%)</label>
     <div class="roi-assumption-val">
@@ -2143,9 +2146,6 @@ code{
 </div>
 
 <p class="footer">
-  Agent Value Ledger stored in <code>runs.db</code> &nbsp;&middot;&nbsp;
-  Advance stages via card buttons &nbsp;&middot;&nbsp;
-  <code>sqlite3 runs.db "UPDATE runs SET pipeline_status='under_review' WHERE opportunity_id='OPP-...'"</code>
 </p>
 
 </div>
@@ -3002,6 +3002,18 @@ function openDetail(opp) {
     ? d.missing_kpis.map(k=>`<div class="detail-kpi-item">${k}</div>`).join('')
     : '<div style="font-size:.78rem;color:#1E9160;padding:.2rem 0">No gaps identified ✓</div>';
 
+  const agenticHtml = (d.agentic_opportunities && d.agentic_opportunities.length)
+    ? d.agentic_opportunities.map(a=>{
+        const task = (typeof a==='string') ? a : (a.task||'—');
+        const owner = a.current_owner ? `<span style="font-size:.66rem;color:#607A96">owner: ${a.current_owner}</span>` : '';
+        const pat = a.agent_pattern ? `<span style="font-size:.66rem;color:#1A6B8E;background:#E8F2F8;border:1px solid #C8DDE8;border-radius:.22rem;padding:.04rem .3rem">${a.agent_pattern}</span>` : '';
+        const feas = a.feasibility ? `<span style="font-size:.66rem;color:#666;background:#F0F4FA;border:1px solid #DDE5EF;border-radius:.22rem;padding:.04rem .3rem">feasibility: ${a.feasibility}</span>` : '';
+        const hrs = (a.estimated_hours_saved_per_month != null) ? `<span style="font-size:.66rem;color:#1E9160;font-variant-numeric:tabular-nums">~${(+a.estimated_hours_saved_per_month).toFixed(1)} h/mo</span>` : '';
+        const rat = a.rationale ? `<div style="font-size:.72rem;color:#5A6B7A;margin-top:.2rem">${a.rationale}</div>` : '';
+        return `<div class="detail-list-item" style="padding:.45rem .55rem"><div style="font-weight:600;font-size:.78rem;color:#1A2B3A">${task}</div><div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.25rem">${pat}${feas}${hrs}${owner}</div>${rat}</div>`;
+      }).join('')
+    : '<div style="font-size:.78rem;color:#AABFCC;padding:.2rem 0">No agentic delivery opportunities identified</div>';
+
   const STAGE_LABELS_SHORT = {
     intake: 'Intake', scanned: 'Extract Outcomes', under_review: 'Human Review',
     generate_report: 'Gen. Instructions', archived: 'Archived',
@@ -3036,6 +3048,11 @@ function openDetail(opp) {
         <div class="ds-label">KPI &amp; Measurement Gaps</div>
         <div style="font-size:.71rem;color:#AABFCC;margin-bottom:.3rem">Gaps that block Value Realization &mdash; must be resolved before outcome-based pricing</div>
         <div class="detail-list">${kpiHtml}</div>
+      </div>
+      <div class="ds">
+        <div class="ds-label">Agentic Delivery Opportunities</div>
+        <div style="font-size:.71rem;color:#AABFCC;margin-bottom:.3rem">Tasks inside delivery where AI agents could automate or augment work &mdash; independent from the commercial pricing decision</div>
+        <div class="detail-list">${agenticHtml}</div>
       </div>
       <div class="ds">
         <div class="ds-label">Recommended Commercial Direction</div>
@@ -3125,6 +3142,21 @@ function openModal(opp) {
   const outList = (d.detected_outcomes && d.detected_outcomes.length)
     ? '<ul>'+d.detected_outcomes.map(o=>`<li>${o}</li>`).join('')+'</ul>'
     : '<p>No specific outcomes were detected.</p>';
+  const agenticItems = (d.agentic_opportunities || []);
+  const agenticList = agenticItems.length
+    ? '<ul>'+agenticItems.map(a=>{
+        if (typeof a === 'string') return `<li>${a}</li>`;
+        const task = a.task || '—';
+        const meta = [];
+        if (a.agent_pattern) meta.push(`pattern: <strong>${a.agent_pattern}</strong>`);
+        if (a.feasibility) meta.push(`feasibility: <strong>${a.feasibility}</strong>`);
+        if (a.estimated_hours_saved_per_month != null) meta.push(`~<strong>${(+a.estimated_hours_saved_per_month).toFixed(1)} h/mo</strong>`);
+        if (a.current_owner) meta.push(`owner: ${a.current_owner}`);
+        const metaLine = meta.length ? `<div style="font-size:.78rem;color:#5A7A94;margin-top:.15rem">${meta.join(' · ')}</div>` : '';
+        const rat = a.rationale ? `<div style="font-size:.78rem;color:#3A5A78;margin-top:.15rem">${a.rationale}</div>` : '';
+        return `<li><strong>${task}</strong>${metaLine}${rat}</li>`;
+      }).join('')+'</ul>'
+    : '<p>No agentic delivery opportunities were identified for this engagement.</p>';
   const isActionable = d.recommendation==='reconsider'||d.recommendation==='recommend';
   // ─── Potential value section (for both parties) ──────────────────────────
   const deal = Number(d.deal_size) || 0;
@@ -3195,6 +3227,13 @@ function openModal(opp) {
       <div class="modal-section-title">Recommended commercial direction</div>
       <div class="modal-body"><p>${d.commercial_direction}</p></div>
     </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Agentic delivery opportunities</div>
+      <div class="modal-body">
+        <p style="font-size:.82rem;color:#5A7A94;margin-bottom:.5rem">Tasks inside delivery where AI agents could automate or augment work. Independent of the commercial-model decision &mdash; these can be pursued in parallel.</p>
+        ${agenticList}
+      </div>
+    </div>
     ${valueSection}
     <div class="modal-section">
       <div class="modal-section-title">What ${mgr.name||'you'} needs to do next</div>
@@ -3206,11 +3245,13 @@ function openModal(opp) {
           <li>Engage Contoso's commercial team to model the outcome-linked fee structure</li>
           <li>Update the SoW to reflect agreed KPIs, baselines, targets, and payment triggers</li>
           <li>Return the updated SoW for a re-scan before contract execution</li>
+          ${agenticItems.length ? '<li>Review the <strong>agentic delivery opportunities</strong> above with your delivery lead &mdash; these are independent of the commercial-model decision and can be pursued in parallel</li>' : ''}
         </ul>` : `<ul>
           <li>Run an <a href="https://green-forest-031d1210f.4.azurestaticapps.net/deal" target="_blank" rel="noopener"><strong>OutcomeIQ</strong></a> maturity assessment to confirm which outcome-based readiness elements are missing</li>
           <li>Log the rationale for ruling out outcome-based pricing</li>
           <li>Schedule a re-scoping conversation if the client relationship allows</li>
           <li>Flag for re-review at the next contract renewal or scope change</li>
+          ${agenticItems.length ? '<li>Even without an outcome-based commercial model, review the <strong>agentic delivery opportunities</strong> above with your delivery lead to capture margin gains</li>' : ''}
         </ul>`}
       </div>
     </div>`;
@@ -3686,17 +3727,17 @@ function switchCockpit(tab) {
   try{ localStorage.setItem('cockpit.tab', tab); }catch(_){ }
 }
 window.addEventListener('load', () => {
-  let savedTab = 'efficiency';
+  let savedTab = 'revenue';
   let savedEff = 'expected';
   let savedRev = 'expected';
   try {
-    savedTab = localStorage.getItem('cockpit.tab') || 'efficiency';
+    savedTab = localStorage.getItem('cockpit.tab') || 'revenue';
     savedEff = localStorage.getItem('cockpit.scenario.efficiency') || 'expected';
     savedRev = localStorage.getItem('cockpit.scenario.revenue') || 'expected';
   } catch(_){ }
   applyScenario(savedEff);
   applyRevenueScenario(savedRev);
-  if (savedTab !== 'efficiency') switchCockpit(savedTab);
+  if (savedTab !== 'revenue') switchCockpit(savedTab);
 });
 </script>
 </body>
@@ -4104,7 +4145,7 @@ class Handler(BaseHTTPRequestHandler):
                     UPDATE runs SET pipeline_status='intake',
                         recommendation=NULL, hours_saved=NULL, summary=NULL,
                         detected_outcomes=NULL, missing_kpis=NULL,
-                        transformation_opportunities=NULL, value_attribution=NULL
+                        transformation_opportunities=NULL, agentic_opportunities=NULL, value_attribution=NULL
                     WHERE opportunity_id=?
                 """, (opp_id,))
             else:
@@ -4144,9 +4185,9 @@ class Handler(BaseHTTPRequestHandler):
                     (run_id, opportunity_id, engagement_name, pipeline_status,
                      sow_text, deal_size, engagement_manager, status, created_at,
                      recommendation, hours_saved, summary, detected_outcomes,
-                     missing_kpis, transformation_opportunities, value_attribution,
+                     missing_kpis, transformation_opportunities, agentic_opportunities, value_attribution,
                      revenue_gain, intake_enriched, reviewer_remarks, human_approved)
-                VALUES (?,?,?,'intake',?,?,?,'draft',?,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,NULL,0)
+                VALUES (?,?,?,'intake',?,?,?,'draft',?,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,NULL,0)
             """, (_uuid.uuid4().hex, opp_id, eng_name, sow_text, deal_size,
                   json.dumps(mgr), now))
         con.commit(); con.close()

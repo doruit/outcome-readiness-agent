@@ -72,6 +72,17 @@ The JSON must conform exactly to this schema:
       "rationale":        "<1–2 sentences: why this element is commercially viable for outcome pricing and what risk-share mechanism would suit it>"
     }
   ],
+  "agentic_opportunities": [
+    {
+      "task":             "<concrete task, workflow step, or decision point inside the delivery — cite the SoW section/phase where it lives>",
+      "current_owner":    "<Analyst | Consultant | Manager | Client | Mixed — who does it today>",
+      "agent_pattern":    "<assistant | autonomous-agent | RAG | workflow-orchestrator | classifier | extractor>",
+      "value_driver":     "<hours_saved | cycle_time | quality | scale | risk_reduction>",
+      "estimated_hours_saved_per_month": <float — realistic monthly delivery-side hours an agent could remove>,
+      "feasibility":      "<'high' | 'medium' | 'low' — based on data availability, repetitiveness, and tolerance for AI output>",
+      "rationale":        "<1–2 sentences: why this is a strong agent candidate and what the simplest MVP would look like>"
+    }
+  ],
   "recommendation":    "<'recommend' | 'reconsider'>",
   "status":            "draft",
   "hours_saved":       <float — estimated analyst hours saved by this automated review>,
@@ -85,6 +96,14 @@ transformation_opportunities guidance:
 - One entry per distinct billable element; do not aggregate phases with very different commercial profiles.
 - suggested_outcome must be a concrete metric with a number, percentage, or threshold — never vague language like 'improve efficiency'.
 - Cite the SoW section or clause by name where possible (e.g. 'Section 2(a) — Churn Rate KPI', 'Phase 2 – Performance Period').
+
+agentic_opportunities guidance:
+- DISTINCT FROM transformation_opportunities. Transformation = how Contoso *prices* the engagement. Agentic = where AI agents could *automate or augment delivery work*.
+- Look for repetitive cognitive tasks with structured input/output: data extraction, document review, status reporting, ticket triage, code review, control testing, KPI monitoring, briefing generation, meeting summarisation, contract clause comparison.
+- AVOID flagging items that are: one-off strategic judgements, legal/regulatory sign-offs, client-relationship moments, or work that is already automated.
+- Prefer 'assistant' or 'RAG' patterns when a human stays in the loop; reserve 'autonomous-agent' for high-volume, well-bounded tasks.
+- estimated_hours_saved_per_month must be defensible — base it on the team size and task frequency described in the SoW.
+- ALWAYS return at least one entry. If the SoW genuinely contains no automatable delivery work, return one entry with feasibility='low' and explain why in the rationale.
 
 measurability scoring:
   'high'   : ≥3 KPIs found, each with both a baseline AND a target, and a stated measurement method
