@@ -1,0 +1,13 @@
+.venv/
+.git/
+.github/
+__pycache__/
+**/__pycache__/
+*.pyc
+.DS_Store
+.env
+media/
+docs/
+runs.db
+runs.db-journal
+_patch_*.py

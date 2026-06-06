@@ -59,7 +59,7 @@ Return ONLY a single valid JSON object — no prose, no markdown fences.
   "rescope_checklist": [
     "<actionable item the client/vendor must add or revise in the SoW>"
   ],
-  "unlock_potential": "<'recommend' | 'reconsider'> — verdict if all clarifications are addressed",
+  "unlock_potential": "<'recommend' | 'reconsider'> — verdict if all high-priority clarifications are addressed. NEVER return 'rule_out'.",
   "hours_saved":       <float 3.0–6.0>,
   "value_attribution": {
     "agent":   "clarification-agent",
