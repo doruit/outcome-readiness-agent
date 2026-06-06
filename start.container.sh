@@ -34,6 +34,7 @@ con.execute("""
         missing_kpis                 TEXT,
         transformation_opportunities TEXT,
         agentic_opportunities        TEXT,
+        uploaded_documents           TEXT,
         created_at                   TEXT DEFAULT (datetime('now'))
     )
 """)
@@ -82,6 +83,7 @@ needed = {
     "human_approved":      "INTEGER DEFAULT 0",
     "agent_name":          "TEXT",
     "agentic_opportunities":"TEXT",
+    "uploaded_documents":  "TEXT",
 }
 for col, ddl in needed.items():
     if col not in existing:
@@ -95,8 +97,8 @@ for sow in sows:
         continue
     con.execute(
         """INSERT INTO runs (run_id, opportunity_id, engagement_name,
-               pipeline_status, status, created_at, sow_text, deal_size)
-           VALUES (?,?,?, 'intake', 'draft', ?, ?, ?)""",
+               pipeline_status, status, created_at, sow_text, uploaded_documents, deal_size)
+           VALUES (?,?,?, 'intake', 'draft', ?, ?, NULL, ?)""",
         (uuid.uuid4().hex, opp_id, sow.get("engagement_name", ""),
          now, sow.get("sow_text", ""), sow.get("deal_size") or 0),
     )

@@ -52,6 +52,8 @@ def ensure_schema() -> None:
         ("missing_kpis",                 "TEXT"),
         ("transformation_opportunities", "TEXT"),
         ("agentic_opportunities",       "TEXT"),
+        ("kpi_scenarios",               "TEXT"),
+        ("uploaded_documents",           "TEXT"),
         ("sow_text",                     "TEXT"),
         ("agent_name",                   "TEXT"),
         ("value_attribution",            "TEXT"),
@@ -150,7 +152,12 @@ def call_agent(sow: dict) -> dict:
 def log_run(result: dict, sow: dict | None = None) -> None:
     """Write the run result to the local SQLite tracker."""
     con = sqlite3.connect(DB_PATH)
-    con.execute(
+    # Prefer the opportunity_id returned by the agent, but fall back to the
+    # original sow value if the agent omitted it (prevents NOT NULL errors).
+    opportunity_id = result.get("opportunity_id") or (sow.get("opportunity_id") if sow else None)
+
+    try:
+        con.execute(
         """
         INSERT OR REPLACE INTO runs
             (run_id, opportunity_id, engagement_name, recommendation,
@@ -161,7 +168,7 @@ def log_run(result: dict, sow: dict | None = None) -> None:
         """,
         (
             result.get("run_id"),
-            result.get("opportunity_id"),
+            opportunity_id,
             result.get("engagement_name"),
             result.get("recommendation"),
             result.get("status", "draft"),
@@ -177,9 +184,21 @@ def log_run(result: dict, sow: dict | None = None) -> None:
             result.get("agent_name", "scan-agent"),
             json.dumps(result.get("value_attribution") or {}),
         ),
-    )
-    con.commit()
-    con.close()
+        )
+        con.commit()
+    except sqlite3.IntegrityError as e:
+        # Log a helpful debug message and continue so the demo can proceed.
+        print("\n[run_demo] DB insert failed:", e)
+        try:
+            print(" result (truncated):", json.dumps(result)[:1000])
+        except Exception:
+            pass
+        try:
+            print(" sow:", sow)
+        except Exception:
+            pass
+    finally:
+        con.close()
 
 
 def print_result(result: dict) -> None:

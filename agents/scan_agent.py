@@ -61,6 +61,17 @@ Return ONLY a single valid JSON object — no prose, no markdown fences.
   "detected_outcomes": ["<measurable outcomes found — quote the KPI metric and target value where possible>"],
   "measurability":     "<'high' | 'medium' | 'low'>",
   "missing_kpis":      ["<KPIs absent but required for outcome pricing — be specific about what is missing>"],
+  "kpi_scenarios": [
+    {
+      "scenario_name":                "<short label, e.g. 'Operational Efficiency Play' | 'Strategic Growth Partnership' | 'Risk-Gate Quality Model'>",
+      "target_outcome":               "<the business outcome this KPI bundle unlocks for the client>",
+      "proposed_kpis":                ["<KPI 1 with metric + target, e.g. '≥94% SLA adherence by Month 6'>", "<KPI 2>", "<KPI 3>"],
+      "measurement_method":           "<data source (ERP, CRM, ticketing tool, client portal), cadence (monthly/weekly), and measurement owner>",
+      "contract_mechanism":           "<gain-share | risk-share | milestone-bonus | penalty-free-tier | hybrid>",
+      "estimated_revenue_uplift_pct": <float 5.0–25.0 — % of deal size this scenario could unlock>,
+      "rationale":                    "<1–2 sentences: why this KPI bundle makes a compelling outcome-based contract and what makes it commercially credible>"
+    }
+  ],
   "transformation_opportunities": [
     {
       "element":           "<specific deliverable / phase / service tower — cite the SoW section or clause name>",
@@ -110,6 +121,18 @@ agentic_opportunities:
 - Prefer 'assistant' or 'RAG' when a human stays in the loop; reserve 'autonomous-agent' for high-volume, well-bounded tasks.
 - estimated_hours_saved_per_month must be defensible — base it on team size and task frequency in the SoW.
 - ALWAYS return at least one entry; if nothing qualifies, return one entry with feasibility='low' and explain why.
+
+kpi_scenarios — ALWAYS return exactly 3 scenarios, each DISTINCT in angle:
+  Scenario 1 — Operational / efficiency:  KPIs around cost, throughput, SLA, cycle time.
+  Scenario 2 — Strategic / growth:        KPIs around revenue, adoption, NPS, outcomes for the client's end-customers.
+  Scenario 3 — Risk-mitigation:           KPIs around quality gates, error rates, compliance, risk reduction.
+  Rules:
+  - Every proposed_kpi must contain a number, percentage, or threshold — no vague language.
+  - Anchor estimated_revenue_uplift_pct to deal_size_eur (range 5–25 %); scenario 2 should be the highest.
+  - measurement_method must name a real data source (ERP, CRM, ticketing tool, client portal) and a cadence.
+  - contract_mechanism must be one of: gain-share | risk-share | milestone-bonus | penalty-free-tier | hybrid.
+  - Each scenario must stand alone — a client could adopt any one of the three independently.
+  - Include 3–5 proposed_kpis per scenario; first KPI should be the headline metric.
 
 recommendation logic:
   'recommend'  : measurability=high AND ≥2 detected outcomes AND <2 missing KPIs

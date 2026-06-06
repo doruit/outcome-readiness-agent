@@ -259,6 +259,7 @@ def ensure_columns(con):
         ("missing_kpis",                 "TEXT"),
         ("transformation_opportunities", "TEXT"),
         ("agentic_opportunities",       "TEXT"),
+        ("kpi_scenarios",               "TEXT"),
         ("sow_text",                     "TEXT"),
         ("agent_name",                   "TEXT"),
         ("value_attribution",            "TEXT"),
@@ -270,6 +271,7 @@ def ensure_columns(con):
         ("reviewer_name",              "TEXT"),
         ("reviewer_role",              "TEXT"),
         ("human_approved",             "INTEGER DEFAULT 0"),
+        ("uploaded_documents",         "TEXT"),
     ]:
         try:
             con.execute(f"ALTER TABLE runs ADD COLUMN {col} {defn}")
@@ -310,7 +312,7 @@ def ensure_columns(con):
     except Exception:
         pass
 
-def log_run(result: dict, db_path: str, pipeline_status: str = "scanned", sow_text: str = "") -> None:
+def log_run(result: dict, db_path: str, pipeline_status: str = "scanned", sow_text: str = "", uploaded_documents: list | None = None) -> None:
     opp_id = result.get("opportunity_id", "")
     mgr    = get_manager(opp_id)
     con    = sqlite3.connect(db_path)
@@ -326,31 +328,35 @@ def log_run(result: dict, db_path: str, pipeline_status: str = "scanned", sow_te
     rv_role    = prev[2] if prev else None
     rv_appr    = prev[3] if prev else 0
     con.execute("""
-        INSERT OR REPLACE INTO runs
-            (run_id, opportunity_id, engagement_name, recommendation,
-             status, pipeline_status, hours_saved, created_at,
-             summary, detected_outcomes, missing_kpis, transformation_opportunities, agentic_opportunities,
-             sow_text, agent_name, value_attribution, engagement_manager, revenue_gain,
-             deal_size, intake_enriched,
-             reviewer_remarks, reviewer_name, reviewer_role, human_approved)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      INSERT OR REPLACE INTO runs
+        (run_id, opportunity_id, engagement_name, recommendation,
+         status, pipeline_status, hours_saved, created_at,
+         summary, detected_outcomes, missing_kpis, transformation_opportunities, agentic_opportunities,
+         kpi_scenarios,
+         sow_text, uploaded_documents, agent_name, value_attribution, engagement_manager, revenue_gain,
+         deal_size, intake_enriched,
+         reviewer_remarks, reviewer_name, reviewer_role, human_approved)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
-        result.get("run_id"), opp_id, result.get("engagement_name"),
-        result.get("recommendation"), result.get("status", "draft"),
-        pipeline_status, result.get("hours_saved"),
-        datetime.now(timezone.utc).isoformat(),
-        result.get("summary"),
-        json.dumps(result.get("detected_outcomes") or []),
-        json.dumps(result.get("missing_kpis") or []),
-        json.dumps(result.get("transformation_opportunities") or []),
-        json.dumps(result.get("agentic_opportunities") or []),
-        sow_text or "", result.get("agent_name", ""),
-        json.dumps(result.get("value_attribution") or {}),
-        json.dumps(mgr),
-        result.get("revenue_gain") or 0,
-        result.get("deal_size") or 0,
-        1 if result.get("deal_size") else 0,
-        rv_remarks, rv_name, rv_role, rv_appr,
+      result.get("run_id"), opp_id, result.get("engagement_name"),
+      result.get("recommendation"), result.get("status", "draft"),
+      pipeline_status, result.get("hours_saved"),
+      datetime.now(timezone.utc).isoformat(),
+      result.get("summary"),
+      json.dumps(result.get("detected_outcomes") or []),
+      json.dumps(result.get("missing_kpis") or []),
+      json.dumps(result.get("transformation_opportunities") or []),
+      json.dumps(result.get("agentic_opportunities") or []),
+      json.dumps(result.get("kpi_scenarios") or []),
+      sow_text or "",
+      (json.dumps(uploaded_documents) if uploaded_documents is not None else None),
+      result.get("agent_name", ""),
+      json.dumps(result.get("value_attribution") or {}),
+      json.dumps(mgr),
+      result.get("revenue_gain") or 0,
+      result.get("deal_size") or 0,
+      1 if result.get("deal_size") else 0,
+      rv_remarks, rv_name, rv_role, rv_appr,
     ))
     con.commit()
     con.close()
@@ -374,26 +380,32 @@ def load_data(db_path: str) -> dict:
     latest = [dict(r) for r in latest]
 
     for row in latest:
-        for col in ("detected_outcomes", "missing_kpis", "transformation_opportunities", "agentic_opportunities"):
-            raw = row.get(col)
-            if isinstance(raw, str):
-                try:    row[col] = json.loads(raw)
-                except: row[col] = []
-            elif raw is None:
-                row[col] = []
-        for col in ("value_attribution", "engagement_manager"):
-            raw = row.get(col)
-            if isinstance(raw, str):
-                try:    row[col] = json.loads(raw)
-                except: row[col] = {}
-            elif raw is None:
-                row[col] = {}
-        if not row.get("pipeline_status"):
-            row["pipeline_status"] = "scanned"
-        if not row.get("engagement_manager"):
-            row["engagement_manager"] = get_manager(row.get("opportunity_id", ""))
-        if not row.get("deal_size"):
-            row["deal_size"] = get_deal_size(row.get("opportunity_id", ""))
+      for col in ("detected_outcomes", "missing_kpis", "transformation_opportunities", "agentic_opportunities", "kpi_scenarios", "uploaded_documents"):
+        raw = row.get(col)
+        if isinstance(raw, str):
+          try:
+            row[col] = json.loads(raw)
+          except:
+            row[col] = []
+        elif raw is None:
+          row[col] = []
+
+      for col in ("value_attribution", "engagement_manager"):
+        raw = row.get(col)
+        if isinstance(raw, str):
+          try:
+            row[col] = json.loads(raw)
+          except:
+            row[col] = {}
+        elif raw is None:
+          row[col] = {}
+
+      if not row.get("pipeline_status"):
+        row["pipeline_status"] = "scanned"
+      if not row.get("engagement_manager"):
+        row["engagement_manager"] = get_manager(row.get("opportunity_id", ""))
+      if not row.get("deal_size"):
+        row["deal_size"] = get_deal_size(row.get("opportunity_id", ""))
 
     buckets = {s: [] for s in STAGE_KEYS}
     for row in latest:
@@ -635,6 +647,7 @@ def build_detail_payload(row: dict, run_history: dict) -> dict:
         "missing_kpis":              _parse_json_list(row.get("missing_kpis")),
         "transformation_opportunities": _parse_json_list(row.get("transformation_opportunities")),
         "agentic_opportunities": _parse_json_list(row.get("agentic_opportunities")),
+        "kpi_scenarios":         _parse_json_list(row.get("kpi_scenarios")),
         "hours_saved":               row.get("hours_saved") or 0,
         "deal_size":                 row.get("deal_size") or get_deal_size(opp),
         "revenue_gain":              row.get("revenue_gain") or 0,
@@ -643,6 +656,7 @@ def build_detail_payload(row: dict, run_history: dict) -> dict:
         "next_action":               next_action,
         "action_label":              action_label,
         "manager":                   mgr,
+        "uploaded_documents":        _parse_json_list(row.get("uploaded_documents")),
         "reviewer_remarks":           row.get("reviewer_remarks") or "",
         "reviewer_name":              row.get("reviewer_name") or "",
         "reviewer_role":              row.get("reviewer_role") or "",
@@ -2095,9 +2109,10 @@ code{
            ondragover="event.preventDefault();this.classList.add('drag-over')"
            ondragleave="this.classList.remove('drag-over')"
            ondrop="handleModalDrop(event)">
-        <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt" onchange="onFileChosen(this)"/>
-        <span id="drop-label">&#128196;&ensp;Drop or click to browse PDF / DOCX / TXT</span>
+        <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt" onchange="onFileChosen(this)" multiple />
+        <span id="drop-label">&#128196;&ensp;Drop or click to browse &mdash; PDF, DOCX or TXT &nbsp;<span style="background:#EEF5FF;color:#0070AD;border:1px solid #C2D9F0;border-radius:.25rem;padding:.05rem .38rem;font-size:.72rem;font-weight:700">up to 4 files</span></span>
       </div>
+      <div id="selected-files-list" style="margin-top:0.45rem;font-size:.84rem;color:#28405A;min-height:1.2em"></div>
       <div class="intake-modal-actions">
         <div class="intake-status" id="upload-status" style="flex:1;font-size:.74rem;color:#5A7A96"></div>
         <button class="btn-modal-ghost" onclick="closeIntakeModal()">Cancel</button>
@@ -2815,22 +2830,58 @@ function doAdvance(opp, stage, btn, silent) {
 }
 
 // ─── Upload ──────────────────────────────────────────────────────────────────
-const dropZone  = document.getElementById('drop-zone');
+const dropZone  = document.getElementById('modal-drop-zone') || document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 const uploadBtn = document.getElementById('upload-btn');
 const statusEl  = document.getElementById('upload-status');
-let chosenFile  = null;
+let chosenFiles  = [];
+function fmtFileSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+function renderSelectedFilesList(targetId, files) {
+  const wrap = document.getElementById(targetId);
+  if (!wrap) return;
+  if (!files || !files.length) { wrap.innerHTML = ''; return; }
+  const items = files.map((f, i) => {
+    const sz = f.size ? ' <span style="color:#7A96B4;font-weight:500">' + fmtFileSize(f.size) + '</span>' : '';
+    return `<div style="display:flex;align-items:center;gap:.35rem;padding:.22rem .5rem;background:#F0F5FB;border:1px solid #D0DCE8;border-radius:.3rem;font-size:.77rem;color:#1E3450;margin-bottom:.22rem">`
+      + `<span style="font-size:.72rem;flex-shrink:0">&#128196;</span>`
+      + `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f.name}${sz}</span>`
+      + `<span style="font-size:.62rem;background:#DDE5EF;border-radius:.25rem;padding:.05rem .35rem;color:#4A6A84;flex-shrink:0">` + (i+1) + `/` + files.length + `</span>`
+      + `</div>`;
+  }).join('');
+  const hint = files.length > 1
+    ? `<div style="font-size:.7rem;color:#5A7A96;margin-top:.1rem">&#8505;&nbsp; ${files.length} documents will be concatenated and reviewed as one SoW</div>`
+    : '';
+  wrap.innerHTML = items + hint;
+}
 function onFileChosen(input) {
-  chosenFile = input.files[0];
-  if (chosenFile) { document.getElementById('drop-label').textContent = '✓ ' + chosenFile.name; uploadBtn.disabled = false; }
+  const fileList = input && input.files ? Array.from(input.files) : [];
+  // enforce max 4 files
+  chosenFiles = fileList.slice(0, 4);
+  const lbl = document.getElementById('drop-label');
+  if (chosenFiles.length === 1) {
+    if (lbl) lbl.textContent = '✓ ' + chosenFiles[0].name;
+    uploadBtn.disabled = false;
+  } else if (chosenFiles.length > 1) {
+    if (lbl) lbl.textContent = '✓ ' + chosenFiles.length + (chosenFiles.length > 1 ? ' files selected' : ' file selected');
+    uploadBtn.disabled = false;
+  } else {
+    if (lbl) lbl.innerHTML = '\uD83D\uDCC4\u2002Drop or click to browse PDF / DOCX / TXT';
+    uploadBtn.disabled = true;
+  }
+  renderSelectedFilesList('selected-files-list', chosenFiles);
 }
 if (dropZone) {
   dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
   dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
   dropZone.addEventListener('drop', e => {
     e.preventDefault(); dropZone.classList.remove('drag-over');
-    const f = e.dataTransfer.files[0];
-    if (f) { fileInput.files = e.dataTransfer.files; onFileChosen(fileInput); }
+    const files = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files : null;
+    if (files && files.length) { fileInput.files = files; onFileChosen(fileInput); }
   });
 }
 function setStatus(msg, cls) { statusEl.textContent = msg; statusEl.className = 'intake-status' + (cls ? ' ' + cls : ''); }
@@ -2838,10 +2889,12 @@ let pendingOppId = null;
 function submitUpload() {
   const oppId = document.getElementById('opp-id').value.trim();
   if (!oppId)      { setStatus('Please enter an Opportunity ID.', 'error'); return; }
-  if (!chosenFile) { setStatus('Please choose a file.', 'error'); return; }
+  if (!chosenFiles || !chosenFiles.length) { setStatus('Please choose at least one file.', 'error'); return; }
   uploadBtn.disabled = true; setStatus('⏳ Extracting engagement details with AI agent… (30–60 s)');
   const fd = new FormData();
-  fd.append('file', chosenFile); fd.append('opportunity_id', oppId); fd.append('engagement_name', '');
+  // Append all selected files (server accepts multiple parts named 'file')
+  chosenFiles.forEach(f => fd.append('file', f));
+  fd.append('opportunity_id', oppId); fd.append('engagement_name', '');
   fetch('/upload', {method:'POST',body:fd})
     .then(async r => {
       const txt = await r.text();
@@ -2959,9 +3012,10 @@ function openDetail(opp) {
                ondragover="event.preventDefault();this.classList.add('drag-over')"
                ondragleave="this.classList.remove('drag-over')"
                ondrop="handleDetailDrop(event,'${opp}')">
-            <input type="file" id="detail-file-input" accept=".pdf,.docx,.doc,.txt" onchange="onDetailFileChosen(this,'${opp}')"/>
-            <span id="detail-drop-label">${d.has_sow ? '&#128196;&ensp;Drop to replace current SoW' : '&#128196;&ensp;Drop or click to browse PDF / DOCX / TXT'}</span>
+            <input type="file" id="detail-file-input" accept=".pdf,.docx,.doc,.txt" onchange="onDetailFileChosen(this,'${opp}')" multiple />
+            <span id="detail-drop-label">${d.has_sow ? '&#128196;&ensp;Drop to replace &mdash; up to 4 files (PDF, DOCX, TXT)' : '&#128196;&ensp;Drop or click to browse &mdash; PDF, DOCX or TXT &nbsp;<span style="background:#EEF5FF;color:#0070AD;border:1px solid #C2D9F0;border-radius:.25rem;padding:.05rem .38rem;font-size:.72rem;font-weight:700">up to 4 files</span>'}</span>
           </div>
+          <div id="detail-selected-files-list" style="margin-top:.35rem;font-size:.82rem;color:#28405A;min-height:1.1em"></div>
           <div id="detail-upload-status" style="font-size:.74rem;color:#5A7A96;min-height:1.2em"></div>
           <div id="detail-upload-actions" style="display:flex;gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
             <button id="detail-upload-btn" class="card-btn btn-primary" disabled onclick="submitDetailUpload('${opp}')">Upload &amp; Run AI Review &#8594;</button>
@@ -3014,6 +3068,8 @@ function openDetail(opp) {
       }).join('')
     : '<div style="font-size:.78rem;color:#AABFCC;padding:.2rem 0">No agentic delivery opportunities identified</div>';
 
+  const kpiScenariosHtml = buildKpiScenariosHtml(d.kpi_scenarios, opp);
+
   const STAGE_LABELS_SHORT = {
     intake: 'Intake', scanned: 'Extract Outcomes', under_review: 'Human Review',
     generate_report: 'Gen. Instructions', archived: 'Archived',
@@ -3048,6 +3104,11 @@ function openDetail(opp) {
         <div class="ds-label">KPI &amp; Measurement Gaps</div>
         <div style="font-size:.71rem;color:#AABFCC;margin-bottom:.3rem">Gaps that block Value Realization &mdash; must be resolved before outcome-based pricing</div>
         <div class="detail-list">${kpiHtml}</div>
+      </div>
+      <div class="ds">
+        <div class="ds-label">&#128202;&ensp;KPI Scenario Analysis</div>
+        <div style="font-size:.71rem;color:#AABFCC;margin-bottom:.45rem">3 distinct scenarios to build a compelling outcome-based contract &mdash; pick one or mix elements for the client conversation</div>
+        ${kpiScenariosHtml}
       </div>
       <div class="ds">
         <div class="ds-label">Agentic Delivery Opportunities</div>
@@ -3116,7 +3177,61 @@ function openDetail(opp) {
   document.getElementById('detail-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
-
+function buildKpiScenariosHtml(scenarios, opp) {
+  if (!scenarios || !scenarios.length) return '<div style="font-size:.78rem;color:#AABFCC;padding:.2rem 0">No KPI scenarios generated yet \u2014 re-scan to produce.</div>';
+  var tabLabels = ['Operational', 'Strategic', 'Risk-Mitigation'];
+  var tabs = scenarios.map(function(s, i) {
+    var active = i === 0;
+    return '<button onclick="switchKpiScenario(\'' + opp + '\',' + i + ')" id="kst-' + opp + '-' + i + '" style="flex:1;padding:.3rem .45rem;font-size:.72rem;font-weight:700;border-radius:5px;cursor:pointer;border:1.5px solid ' + (active ? '#0070AD' : '#C8D8E8') + ';background:' + (active ? '#EAF4FF' : '#F8FAFE') + ';color:' + (active ? '#0070AD' : '#607A94') + ';transition:all .14s">' + (tabLabels[i] || s.scenario_name) + '</button>';
+  }).join('');
+  var panels = scenarios.map(function(s, i) {
+    var active = i === 0;
+    var kpis = (s.proposed_kpis || []).map(function(k) {
+      return '<div style="display:flex;align-items:baseline;gap:.3rem;margin-bottom:.18rem"><span style="color:#1E9160;font-size:.72rem;flex-shrink:0">&#10003;</span><span style="font-size:.76rem;color:#1E3450">' + k + '</span></div>';
+    }).join('');
+    var uplift = (s.estimated_revenue_uplift_pct != null)
+      ? '<div style="margin-top:.4rem;display:inline-flex;align-items:center;font-size:.72rem;font-weight:700;color:#1E9160;background:#ECFDF5;border:1px solid #A7F3D0;padding:.2rem .55rem;border-radius:99px">&#8593;&thinsp;+' + (+s.estimated_revenue_uplift_pct).toFixed(1) + '% uplift potential</div>' : '';
+    return '<div id="ksp-' + opp + '-' + i + '" style="display:' + (active ? 'block' : 'none') + '">'
+      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;margin-bottom:.4rem;flex-wrap:wrap">'
+      + '<span style="font-size:.8rem;font-weight:700;color:#0F172A;flex:1">' + (s.scenario_name || '') + '</span>'
+      + '<span style="font-size:.68rem;font-weight:600;padding:.15rem .5rem;border-radius:99px;white-space:nowrap;background:#F0F4FA;color:#4A6A84;border:1px solid #C8D8E8">' + (s.contract_mechanism || '\u2014') + '</span>'
+      + '</div>'
+      + '<div style="font-size:.74rem;color:#3A5470;margin-bottom:.35rem;font-style:italic">' + (s.target_outcome || '') + '</div>'
+      + '<div style="font-size:.69rem;font-weight:700;color:#4A6A84;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.2rem">Proposed KPIs</div>'
+      + kpis
+      + '<div style="margin-top:.4rem;font-size:.7rem;color:#5A7A96"><strong>Measurement:</strong> ' + (s.measurement_method || '\u2014') + '</div>'
+      + '<div style="margin-top:.25rem;font-size:.7rem;color:#5A7A96">' + (s.rationale || '') + '</div>'
+      + uplift + '</div>';
+  }).join('');
+  return '<div style="display:flex;gap:.4rem;margin-bottom:.55rem">' + tabs + '</div>' + panels;
+}
+function switchKpiScenario(opp, idx) {
+  [0, 1, 2].forEach(function(i) {
+    var tab   = document.getElementById('kst-' + opp + '-' + i);
+    var panel = document.getElementById('ksp-' + opp + '-' + i);
+    if (!tab || !panel) return;
+    var active = i === idx;
+    tab.style.borderColor = active ? '#0070AD' : '#C8D8E8';
+    tab.style.background  = active ? '#EAF4FF' : '#F8FAFE';
+    tab.style.color       = active ? '#0070AD' : '#607A94';
+    panel.style.display   = active ? 'block' : 'none';
+  });
+}
+function buildBestScenarioHtml(scenarios) {
+  if (!scenarios || !scenarios.length) return '';
+  var best = scenarios.reduce(function(a, b) {
+    return (+a.estimated_revenue_uplift_pct || 0) >= (+b.estimated_revenue_uplift_pct || 0) ? a : b;
+  });
+  var kpis = (best.proposed_kpis || []).map(function(k) { return '<li>' + k + '</li>'; }).join('');
+  var uplift = (best.estimated_revenue_uplift_pct != null)
+    ? '<p style="margin-top:.4rem;font-weight:700;color:#1E9160">Revenue uplift potential: +' + (+best.estimated_revenue_uplift_pct).toFixed(1) + '% of deal size</p>' : '';
+  return '<div class="modal-section"><div class="modal-section-title">&#128202;&ensp;Recommended KPI scenario for the client conversation</div><div class="modal-body">'
+    + '<p style="margin-bottom:.5rem"><strong>' + (best.scenario_name || '') + '</strong> &mdash; ' + (best.target_outcome || '') + '</p>'
+    + '<ul>' + kpis + '</ul>'
+    + '<p style="margin-top:.5rem;font-size:.82rem;color:#5A7A94"><em>Mechanism: ' + (best.contract_mechanism || '\u2014') + ' &middot; ' + (best.measurement_method || '') + '</em></p>'
+    + '<p style="margin-top:.4rem">' + (best.rationale || '') + '</p>'
+    + uplift + '</div></div>';
+}
 // ─── Activation modal ────────────────────────────────────────────────────────
 function openModal(opp) {
   const d = DETAILS[opp]; if (!d) return;
@@ -3157,6 +3272,7 @@ function openModal(opp) {
         return `<li><strong>${task}</strong>${metaLine}${rat}</li>`;
       }).join('')+'</ul>'
     : '<p>No agentic delivery opportunities were identified for this engagement.</p>';
+  const bestScenarioSection = buildBestScenarioHtml(d.kpi_scenarios);
   const isActionable = d.recommendation==='reconsider'||d.recommendation==='recommend';
   // ─── Potential value section (for both parties) ──────────────────────────
   const deal = Number(d.deal_size) || 0;
@@ -3234,6 +3350,7 @@ function openModal(opp) {
         ${agenticList}
       </div>
     </div>
+    ${bestScenarioSection}
     ${valueSection}
     <div class="modal-section">
       <div class="modal-section-title">What ${mgr.name||'you'} needs to do next</div>
@@ -3504,32 +3621,36 @@ document.addEventListener('keydown', e => {
 });
 
 // ─── Intake detail upload ─────────────────────────────────────────────────
-let detailChosenFile = null;
+let detailChosenFiles = [];
 function onDetailFileChosen(input, opp) {
-  detailChosenFile = (input.files||[])[0] || null;
-  if (detailChosenFile) {
-    const lbl = document.getElementById('detail-drop-label');
-    if (lbl) lbl.textContent = '\uD83D\uDCC4\u2002' + detailChosenFile.name;
-    const btn = document.getElementById('detail-upload-btn');
-    if (btn) btn.disabled = false;
+  const fileList = input && input.files ? Array.from(input.files) : [];
+  detailChosenFiles = fileList.slice(0, 4);
+  const lbl = document.getElementById('detail-drop-label');
+  if (lbl) {
+    if (detailChosenFiles.length === 1) lbl.textContent = '\uD83D\uDCC4\u2002' + detailChosenFiles[0].name;
+    else if (detailChosenFiles.length > 1) lbl.textContent = '\uD83D\uDCC4\u2002' + detailChosenFiles.length + ' files selected';
+    else lbl.innerHTML = '\uD83D\uDCC4\u2002Drop or click to browse PDF / DOCX / TXT';
   }
+  renderSelectedFilesList('detail-selected-files-list', detailChosenFiles);
+  const btn = document.getElementById('detail-upload-btn');
+  if (btn) btn.disabled = !(detailChosenFiles && detailChosenFiles.length);
 }
 function handleDetailDrop(e, opp) {
   e.preventDefault();
   const zone = document.getElementById('detail-drop-zone');
   if (zone) zone.classList.remove('drag-over');
-  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-  if (f) onDetailFileChosen({files:[f]}, opp);
+  const files = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files : null;
+  if (files && files.length) onDetailFileChosen({files: files}, opp);
 }
 function submitDetailUpload(opp) {
   const d = DETAILS[opp];
-  if (!detailChosenFile || !d) return;
+  if (!detailChosenFiles || !detailChosenFiles.length || !d) return;
   const btn = document.getElementById('detail-upload-btn');
   const st  = document.getElementById('detail-upload-status');
   if (btn) btn.disabled = true;
   if (st)  st.textContent = '\u23F3 Uploading and running AI review\u2026 (30\u201360\u2009s)';
   const fd = new FormData();
-  fd.append('file', detailChosenFile);
+  detailChosenFiles.forEach(f => fd.append('file', f));
   fd.append('opportunity_id', d.opportunity_id);
   fd.append('engagement_name', d.engagement_name);
   fetch('/upload', {method:'POST', body:fd})
@@ -3575,8 +3696,9 @@ function openIntakeModal() {
   const us = document.getElementById('upload-status'); if (us) { us.textContent = ''; us.className = 'intake-status'; }
   const cs = document.getElementById('confirm-status'); if (cs) { cs.textContent = ''; cs.className = 'intake-status'; }
   const oppEl = document.getElementById('opp-id'); if (oppEl) oppEl.value = '';
-  const lbl = document.getElementById('drop-label'); if (lbl) lbl.innerHTML = '&#128196;&ensp;Drop or click to browse PDF / DOCX / TXT';
-  chosenFile = null; pendingOppId = null;
+  const lbl = document.getElementById('drop-label');
+  if (lbl) lbl.innerHTML = '&#128196;&ensp;Drop or click to browse &mdash; PDF, DOCX or TXT &nbsp;<span style="background:#EEF5FF;color:#0070AD;border:1px solid #C2D9F0;border-radius:.25rem;padding:.05rem .38rem;font-size:.72rem;font-weight:700">up to 4 files</span>';
+  chosenFiles = []; pendingOppId = null;
   if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.textContent = 'Intake the SoW →'; }
   const cbtn = document.getElementById('confirm-btn'); if (cbtn) cbtn.disabled = false;
   document.getElementById('intake-modal-overlay').classList.add('open');
@@ -3595,7 +3717,6 @@ function handleModalDrop(e) {
   const dt = e.dataTransfer;
   if (dt && dt.files && dt.files.length > 0) {
     onFileChosen({files: dt.files});
-    document.getElementById('drop-label').textContent = '\uD83D\uDCC4\u2002' + dt.files[0].name;
   }
 }
 
@@ -3903,91 +4024,153 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(404); self.end_headers()
 
     def _handle_upload(self):
-        content_type   = self.headers.get("Content-Type", "")
-        content_length = int(self.headers.get("Content-Length", 0))
-        raw_body = self.rfile.read(content_length)
-        fields: dict = {}; file_data: bytes = b""; filename = "upload.txt"
+      content_type = self.headers.get("Content-Type", "")
+      content_length = int(self.headers.get("Content-Length", 0))
+      raw_body = self.rfile.read(content_length)
 
-        def _params(hv):
-            m = email.message.Message(); m["content-disposition"] = hv
-            return {"name": m.get_param("name", header="content-disposition") or "",
-                    "filename": m.get_param("filename", header="content-disposition") or ""}
+      fields = {}
+      files = []
 
-        _ct = email.message.Message(); _ct["content-type"] = content_type
-        boundary = _ct.get_param("boundary")
-        if boundary:
-            for chunk in raw_body.split(("--" + boundary).encode())[1:]:
-                if chunk.strip() in (b"", b"--", b"--\r\n", b"--\n"): continue
-                sep = b"\r\n\r\n" if b"\r\n\r\n" in chunk else (b"\n\n" if b"\n\n" in chunk else None)
-                if not sep: continue
-                hdr_raw, body_chunk = chunk.split(sep, 1)
-                body_chunk = body_chunk.rstrip(b"\r\n")
-                ph = {}
-                for line in hdr_raw.decode("utf-8", errors="replace").strip().splitlines():
-                    if ":" in line:
-                        k, _, v = line.partition(":"); ph[k.strip().lower()] = v.strip()
-                p = _params(ph.get("content-disposition", ""))
-                if p["name"] == "file": file_data = body_chunk; filename = p["filename"] or "upload.txt"
-                elif p["name"]: fields[p["name"]] = body_chunk.decode("utf-8", errors="replace")
+      def _params(hv):
+        m = email.message.Message()
+        m["content-disposition"] = hv
+        return {
+          "name": m.get_param("name", header="content-disposition") or "",
+          "filename": m.get_param("filename", header="content-disposition") or "",
+        }
 
-        opp_id   = fields.get("opportunity_id", "").strip()
-        eng_name = fields.get("engagement_name", "").strip()
-        if not opp_id:
-            self._respond(400, "opportunity_id required"); return
-        if not eng_name:
-            # Engagement name is derived from the SoW by the Intake Agent below.
-            eng_name = "(pending intake)"
-        if not file_data:
-            self._respond(400, "No file received"); return
-        try:    sow_text = extract_text(filename, file_data)
-        except Exception as e: self._respond(500, f"Extraction failed: {e}"); return
-        if not sow_text.strip():
-            self._respond(400, "Could not extract text"); return
+      _ct = email.message.Message()
+      _ct["content-type"] = content_type
+      boundary = _ct.get_param("boundary")
+      if boundary:
+        parts = raw_body.split(("--" + boundary).encode())[1:]
+        for chunk in parts:
+          if chunk.strip() in (b"", b"--", b"--\r\n", b"--\n"):
+            continue
+          sep = (
+            b"\r\n\r\n"
+            if b"\r\n\r\n" in chunk
+            else (b"\n\n" if b"\n\n" in chunk else None)
+          )
+          if not sep:
+            continue
+          hdr_raw, body_chunk = chunk.split(sep, 1)
+          body_chunk = body_chunk.rstrip(b"\r\n")
+          ph = {}
+          for line in hdr_raw.decode("utf-8", errors="replace").strip().splitlines():
+            if ":" in line:
+              k, _, v = line.partition(":")
+              ph[k.strip().lower()] = v.strip()
+          p = _params(ph.get("content-disposition", ""))
+          if p["name"] and p["name"].startswith("file"):
+            files.append((p["filename"] or "upload.txt", body_chunk))
+          elif p["name"]:
+            fields[p["name"]] = body_chunk.decode("utf-8", errors="replace")
 
-        stub = {"run_id": str(_uuid.uuid4()), "opportunity_id": opp_id,
-                "engagement_name": eng_name, "recommendation": None, "status": "draft"}
-        log_run(stub, DB_PATH, pipeline_status="intake", sow_text=sow_text)
-        # Run Intake Agent to extract title/manager/deal_size so the user can confirm
-        # or override before we run the expensive Outcomes Extraction scan.
-        extracted_title = ""
-        extracted_mgr   = ""
-        deal_size       = 0
+      opp_id = fields.get("opportunity_id", "").strip()
+      eng_name = fields.get("engagement_name", "").strip()
+      if not opp_id:
+        self._respond(400, "opportunity_id required")
+        return
+      if not eng_name:
+        eng_name = "(pending intake)"
+      if not files:
+        self._respond(400, "No file received")
+        return
+
+      # Extract text from up to the first 4 uploaded files and concatenate them.
+      texts = []
+      for fn, data in files[:4]:
         try:
-            intake_result   = call_intake_agent(opp_id, sow_text)
-            deal_size       = intake_result.get("deal_size") or 0
-            extracted_title = (intake_result.get("engagement_title") or "").strip()
-            extracted_mgr   = (intake_result.get("engagement_manager") or "").strip()
-            con2 = sqlite3.connect(DB_PATH)
-            ensure_columns(con2)
-            mgr_obj = get_manager(opp_id)
-            if extracted_mgr: mgr_obj["name"] = extracted_mgr
-            con2.execute("""
-                UPDATE runs
-                   SET engagement_name    = CASE WHEN ? != '' THEN ? ELSE engagement_name END,
-                       deal_size          = ?,
-                       intake_enriched    = 1,
-                       engagement_manager = ?
-                 WHERE opportunity_id = ?
-            """, (extracted_title, extracted_title, deal_size, json.dumps(mgr_obj), opp_id))
-            con2.commit(); con2.close()
-        except Exception as e:
-            # Intake agent offline — return empty values so the user can fill them in.
-            self._json_respond(200, {
-                "opportunity_id":     opp_id,
-                "engagement_title":   "",
-                "engagement_manager": "",
-                "deal_size":          0,
-                "intake_error":       str(e),
-            })
-            return
-        # Return the intake values for user confirmation. The frontend will POST
-        # back to /apply-intake with the (possibly overridden) values.
-        self._json_respond(200, {
-            "opportunity_id":     opp_id,
-            "engagement_title":   extracted_title,
-            "engagement_manager": extracted_mgr,
-            "deal_size":          deal_size,
-        })
+          txt = extract_text(fn, data)
+        except Exception:
+          txt = ''
+        if txt and txt.strip():
+          header = f"\n\n---- File: {fn} ----\n\n"
+          texts.append(header + txt.strip())
+      if not texts:
+        self._respond(400, "Could not extract text from uploaded files")
+        return
+      sow_text = "\n\n".join(texts)
+
+      # Build uploaded_documents metadata (limit to first 4 files)
+      uploaded_documents = []
+      for fn, data in files[:4]:
+        try:
+          uploaded_documents.append({"filename": fn, "size": len(data)})
+        except Exception:
+          uploaded_documents.append({"filename": fn})
+
+      stub = {
+        "run_id": str(_uuid.uuid4()),
+        "opportunity_id": opp_id,
+        "engagement_name": eng_name,
+        "recommendation": None,
+        "status": "draft",
+      }
+
+      # Record the intake run including uploaded_documents metadata
+      log_run(
+        stub,
+        DB_PATH,
+        pipeline_status="intake",
+        sow_text=sow_text,
+        uploaded_documents=uploaded_documents,
+      )
+
+      # Run Intake Agent to extract title/manager/deal_size so the user can confirm
+      # or override before we run the expensive Outcomes Extraction scan.
+      extracted_title = ""
+      extracted_mgr = ""
+      deal_size = 0
+      try:
+        intake_result = call_intake_agent(opp_id, sow_text)
+        deal_size = intake_result.get("deal_size") or 0
+        extracted_title = (intake_result.get("engagement_title") or "").strip()
+        extracted_mgr = (intake_result.get("engagement_manager") or "").strip()
+        con2 = sqlite3.connect(DB_PATH)
+        ensure_columns(con2)
+        mgr_obj = get_manager(opp_id)
+        if extracted_mgr:
+          mgr_obj["name"] = extracted_mgr
+        con2.execute(
+          """
+          UPDATE runs
+             SET engagement_name    = CASE WHEN ? != '' THEN ? ELSE engagement_name END,
+               deal_size          = ?,
+               intake_enriched    = 1,
+               engagement_manager = ?
+           WHERE opportunity_id = ?
+        """,
+          (extracted_title, extracted_title, deal_size, json.dumps(mgr_obj), opp_id),
+        )
+        con2.commit()
+        con2.close()
+      except Exception as e:
+        # Intake agent offline — return empty values so the user can fill them in.
+        self._json_respond(
+          200,
+          {
+            "opportunity_id": opp_id,
+            "engagement_title": "",
+            "engagement_manager": "",
+            "deal_size": 0,
+            "intake_error": str(e),
+          },
+        )
+        return
+
+      # Return the intake values for user confirmation. The frontend will POST
+      # back to /apply-intake with the (possibly overridden) values.
+      self._json_respond(
+        200,
+        {
+          "opportunity_id": opp_id,
+          "engagement_title": extracted_title,
+          "engagement_manager": extracted_mgr,
+          "deal_size": deal_size,
+        },
+      )
 
     def _handle_apply_intake(self):
         """Save user-confirmed intake fields, then run the Outcomes Extraction scan."""
@@ -4145,7 +4328,7 @@ class Handler(BaseHTTPRequestHandler):
                     UPDATE runs SET pipeline_status='intake',
                         recommendation=NULL, hours_saved=NULL, summary=NULL,
                         detected_outcomes=NULL, missing_kpis=NULL,
-                        transformation_opportunities=NULL, agentic_opportunities=NULL, value_attribution=NULL
+                        transformation_opportunities=NULL, agentic_opportunities=NULL, kpi_scenarios=NULL, value_attribution=NULL
                     WHERE opportunity_id=?
                 """, (opp_id,))
             else:
@@ -4182,13 +4365,13 @@ class Handler(BaseHTTPRequestHandler):
             mgr = get_manager(opp_id)
             con.execute("""
                 INSERT INTO runs
-                    (run_id, opportunity_id, engagement_name, pipeline_status,
-                     sow_text, deal_size, engagement_manager, status, created_at,
+                  (run_id, opportunity_id, engagement_name, pipeline_status,
+                   sow_text, uploaded_documents, deal_size, engagement_manager, status, created_at,
                      recommendation, hours_saved, summary, detected_outcomes,
-                     missing_kpis, transformation_opportunities, agentic_opportunities, value_attribution,
+                     missing_kpis, transformation_opportunities, agentic_opportunities, kpi_scenarios, value_attribution,
                      revenue_gain, intake_enriched, reviewer_remarks, human_approved)
-                VALUES (?,?,?,'intake',?,?,?,'draft',?,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,NULL,0)
-            """, (_uuid.uuid4().hex, opp_id, eng_name, sow_text, deal_size,
+                VALUES (?,?,?,'intake',?,NULL,?,?,'draft',?,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,NULL,0)
+              """, (_uuid.uuid4().hex, opp_id, eng_name, sow_text, deal_size,
                   json.dumps(mgr), now))
         con.commit(); con.close()
         self._json_respond(200, {"ok": True, "seeded": len(sows)})
