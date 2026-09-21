@@ -260,6 +260,9 @@ def ensure_columns(con):
         ("transformation_opportunities", "TEXT"),
         ("agentic_opportunities",       "TEXT"),
         ("kpi_scenarios",               "TEXT"),
+        ("value_pool_assessment",       "TEXT"),
+        ("value_pool_ranking",          "TEXT"),
+        ("value_pool_evidence_gaps",    "TEXT"),
         ("sow_text",                     "TEXT"),
         ("agent_name",                   "TEXT"),
         ("value_attribution",            "TEXT"),
@@ -332,11 +335,11 @@ def log_run(result: dict, db_path: str, pipeline_status: str = "scanned", sow_te
         (run_id, opportunity_id, engagement_name, recommendation,
          status, pipeline_status, hours_saved, created_at,
          summary, detected_outcomes, missing_kpis, transformation_opportunities, agentic_opportunities,
-         kpi_scenarios,
+         kpi_scenarios, value_pool_assessment, value_pool_ranking, value_pool_evidence_gaps,
          sow_text, uploaded_documents, agent_name, value_attribution, engagement_manager, revenue_gain,
          deal_size, intake_enriched,
          reviewer_remarks, reviewer_name, reviewer_role, human_approved)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     """, (
       result.get("run_id"), opp_id, result.get("engagement_name"),
       result.get("recommendation"), result.get("status", "draft"),
@@ -348,6 +351,9 @@ def log_run(result: dict, db_path: str, pipeline_status: str = "scanned", sow_te
       json.dumps(result.get("transformation_opportunities") or []),
       json.dumps(result.get("agentic_opportunities") or []),
       json.dumps(result.get("kpi_scenarios") or []),
+      json.dumps(result.get("value_pool_assessment") or []),
+      json.dumps(result.get("value_pool_ranking") or []),
+      json.dumps(result.get("value_pool_evidence_gaps") or []),
       sow_text or "",
       (json.dumps(uploaded_documents) if uploaded_documents is not None else None),
       result.get("agent_name", ""),
@@ -380,7 +386,7 @@ def load_data(db_path: str) -> dict:
     latest = [dict(r) for r in latest]
 
     for row in latest:
-      for col in ("detected_outcomes", "missing_kpis", "transformation_opportunities", "agentic_opportunities", "kpi_scenarios", "uploaded_documents"):
+      for col in ("detected_outcomes", "missing_kpis", "transformation_opportunities", "agentic_opportunities", "kpi_scenarios", "value_pool_assessment", "value_pool_ranking", "value_pool_evidence_gaps", "uploaded_documents"):
         raw = row.get(col)
         if isinstance(raw, str):
           try:
@@ -648,6 +654,9 @@ def build_detail_payload(row: dict, run_history: dict) -> dict:
         "transformation_opportunities": _parse_json_list(row.get("transformation_opportunities")),
         "agentic_opportunities": _parse_json_list(row.get("agentic_opportunities")),
         "kpi_scenarios":         _parse_json_list(row.get("kpi_scenarios")),
+        "value_pool_assessment":     _parse_json_list(row.get("value_pool_assessment")),
+        "value_pool_ranking":        _parse_json_list(row.get("value_pool_ranking")),
+        "value_pool_evidence_gaps":  _parse_json_list(row.get("value_pool_evidence_gaps")),
         "hours_saved":               row.get("hours_saved") or 0,
         "deal_size":                 row.get("deal_size") or get_deal_size(opp),
         "revenue_gain":              row.get("revenue_gain") or 0,
@@ -3069,6 +3078,7 @@ function openDetail(opp) {
     : '<div style="font-size:.78rem;color:#AABFCC;padding:.2rem 0">No agentic delivery opportunities identified</div>';
 
   const kpiScenariosHtml = buildKpiScenariosHtml(d.kpi_scenarios, opp);
+  const valuePoolRowsHtml = buildValuePoolHtml(d.value_pool_assessment, d.value_pool_ranking, d.value_pool_evidence_gaps, true);
 
   const STAGE_LABELS_SHORT = {
     intake: 'Intake', scanned: 'Extract Outcomes', under_review: 'Human Review',
@@ -3110,6 +3120,11 @@ function openDetail(opp) {
         <div style="font-size:.71rem;color:#AABFCC;margin-bottom:.45rem">3 distinct scenarios to build a compelling outcome-based contract &mdash; pick one or mix elements for the client conversation</div>
         ${kpiScenariosHtml}
       </div>
+      ${valuePoolRowsHtml ? `<div class="ds">
+        <div class="ds-label">\u{1F3AF}&ensp;AI Value Pool Assessment</div>
+        <div style="font-size:.71rem;color:#AABFCC;margin-bottom:.45rem">Which of Contoso's five AI value pools this engagement touches, ranked by opportunity</div>
+        ${valuePoolRowsHtml}
+      </div>` : ''}
       <div class="ds">
         <div class="ds-label">Agentic Delivery Opportunities</div>
         <div style="font-size:.71rem;color:#AABFCC;margin-bottom:.3rem">Tasks inside delivery where AI agents could automate or augment work &mdash; independent from the commercial pricing decision</div>
@@ -3179,60 +3194,186 @@ function openDetail(opp) {
 }
 function buildKpiScenariosHtml(scenarios, opp) {
   if (!scenarios || !scenarios.length) return '<div style="font-size:.78rem;color:#AABFCC;padding:.2rem 0">No KPI scenarios generated yet \u2014 re-scan to produce.</div>';
-  var tabLabels = ['Operational', 'Strategic', 'Risk-Mitigation'];
-  var tabs = scenarios.map(function(s, i) {
-    var active = i === 0;
-    return '<button onclick="switchKpiScenario(\'' + opp + '\',' + i + ')" id="kst-' + opp + '-' + i + '" style="flex:1;padding:.3rem .45rem;font-size:.72rem;font-weight:700;border-radius:5px;cursor:pointer;border:1.5px solid ' + (active ? '#0070AD' : '#C8D8E8') + ';background:' + (active ? '#EAF4FF' : '#F8FAFE') + ';color:' + (active ? '#0070AD' : '#607A94') + ';transition:all .14s">' + (tabLabels[i] || s.scenario_name) + '</button>';
+  var TYPE_CFG = {
+    'delivery-performance': {color:'#1A7A4A',bg:'#E8F7EE',border:'#A8D5B5',badge:'Safest \u00b7 most contractable'},
+    'commercial-outcome':   {color:'#5B3FA6',bg:'#F3EFFF',border:'#C5B5EF',badge:'Highest upside \u00b7 highest risk'},
+    'quality-gated-hybrid': {color:'#B87A00',bg:'#FEF8EC',border:'#F0D080',badge:'\u2605 Most defensible in practice'},
+  };
+  var DFLT_TYPES = ['delivery-performance','commercial-outcome','quality-gated-hybrid'];
+  var tabs = scenarios.map(function(s,i){
+    var active = i===0;
+    var t = s.scenario_type || DFLT_TYPES[i] || 'delivery-performance';
+    var c = TYPE_CFG[t] || TYPE_CFG['delivery-performance'];
+    return '<button onclick="switchKpiScenario(\''+opp+'\','+i+')" id="kst-'+opp+'-'+i+'" style="flex:1;padding:.32rem .5rem;font-size:.69rem;font-weight:700;border-radius:6px;cursor:pointer;text-align:left;line-height:1.3;transition:all .14s;border:1.5px solid '+(active?c.color:'#C8D8E8')+';background:'+(active?c.bg:'#F8FAFE')+';color:'+(active?c.color:'#607A94')+'">'
+      +(s.scenario_name || c.badge.split('\u00b7')[0].trim())
+      +'<div style="font-size:.61rem;font-weight:500;margin-top:.07rem;opacity:.75">'+c.badge+'</div>'
+      +'</button>';
   }).join('');
-  var panels = scenarios.map(function(s, i) {
-    var active = i === 0;
-    var kpis = (s.proposed_kpis || []).map(function(k) {
-      return '<div style="display:flex;align-items:baseline;gap:.3rem;margin-bottom:.18rem"><span style="color:#1E9160;font-size:.72rem;flex-shrink:0">&#10003;</span><span style="font-size:.76rem;color:#1E3450">' + k + '</span></div>';
+  var panels = scenarios.map(function(s,i){
+    var active = i===0;
+    var t = s.scenario_type || DFLT_TYPES[i];
+    var c = TYPE_CFG[t] || TYPE_CFG['delivery-performance'];
+    function indBadge(label,val,invert){
+      var lvl=(val||'medium').toLowerCase();
+      var hi=invert?'low':'high', lo=invert?'high':'low';
+      var clr=lvl===hi?'#1A7A4A':lvl===lo?'#9B1C1C':'#B87A00';
+      var bg =lvl===hi?'#E8F7EE':lvl===lo?'#FEF3F2':'#FEF8EC';
+      return '<span style="font-size:.62rem;font-weight:600;padding:.1rem .38rem;border-radius:99px;background:'+bg+';color:'+clr+'">'+label+': '+lvl+'</span>';
+    }
+    var badges = '<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin:.45rem 0 .4rem">'
+      +indBadge('Contractability',s.contractability,false)
+      +indBadge('Governance burden',s.governance_burden,true)
+      +indBadge('Data dependency',s.data_dependency,true)
+      +'</div>';
+    var kpiRows = (s.proposed_kpis||[]).map(function(k){
+      if(typeof k==='string') return '<div style="display:flex;align-items:baseline;gap:.35rem;margin-bottom:.2rem"><span style="color:#1E9160;font-size:.72rem;flex-shrink:0">\u2713</span><span style="font-size:.76rem;color:#1E3450">'+k+'</span></div>';
+      var aColor={'direct':'#1A7A4A','shared':'#B87A00','indirect':'#607A94'}[k.attribution_strength||'shared']||'#607A94';
+      var aBg   ={'direct':'#E8F7EE','shared':'#FEF8EC','indirect':'#F0F4FA'}[k.attribution_strength||'shared']||'#F0F4FA';
+      return '<div style="margin-bottom:.4rem;padding:.32rem .45rem;background:#F8FAFE;border:1px solid #E0E8F0;border-radius:.35rem">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">'
+        +'<span style="font-size:.75rem;font-weight:600;color:#1E3450;flex:1">'+k.kpi+'</span>'
+        +'<span style="font-size:.61rem;font-weight:600;padding:.08rem .35rem;border-radius:99px;background:'+aBg+';color:'+aColor+';flex-shrink:0;white-space:nowrap">'+(k.attribution_strength||'shared')+'</span>'
+        +'</div>'
+        +(k.baseline_required?'<div style="font-size:.67rem;color:#7A96B0;margin-top:.15rem">Baseline: '+k.baseline_required+'</div>':'')
+        +(k.measurement_source?'<div style="font-size:.67rem;color:#5A7A94;margin-top:.06rem">Source: <em>'+k.measurement_source+'</em></div>':'')
+        +'</div>';
     }).join('');
-    var uplift = (s.estimated_revenue_uplift_pct != null)
-      ? '<div style="margin-top:.4rem;display:inline-flex;align-items:center;font-size:.72rem;font-weight:700;color:#1E9160;background:#ECFDF5;border:1px solid #A7F3D0;padding:.2rem .55rem;border-radius:99px">&#8593;&thinsp;+' + (+s.estimated_revenue_uplift_pct).toFixed(1) + '% uplift potential</div>' : '';
-    return '<div id="ksp-' + opp + '-' + i + '" style="display:' + (active ? 'block' : 'none') + '">'
-      + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;margin-bottom:.4rem;flex-wrap:wrap">'
-      + '<span style="font-size:.8rem;font-weight:700;color:#0F172A;flex:1">' + (s.scenario_name || '') + '</span>'
-      + '<span style="font-size:.68rem;font-weight:600;padding:.15rem .5rem;border-radius:99px;white-space:nowrap;background:#F0F4FA;color:#4A6A84;border:1px solid #C8D8E8">' + (s.contract_mechanism || '\u2014') + '</span>'
-      + '</div>'
-      + '<div style="font-size:.74rem;color:#3A5470;margin-bottom:.35rem;font-style:italic">' + (s.target_outcome || '') + '</div>'
-      + '<div style="font-size:.69rem;font-weight:700;color:#4A6A84;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.2rem">Proposed KPIs</div>'
-      + kpis
-      + '<div style="margin-top:.4rem;font-size:.7rem;color:#5A7A96"><strong>Measurement:</strong> ' + (s.measurement_method || '\u2014') + '</div>'
-      + '<div style="margin-top:.25rem;font-size:.7rem;color:#5A7A96">' + (s.rationale || '') + '</div>'
-      + uplift + '</div>';
+    var upliftHtml='';
+    if(s.uplift_range&&typeof s.uplift_range==='object'){
+      var confClr={'high':'#1A7A4A','medium':'#B87A00','low':'#9B1C1C'}[s.uplift_range.confidence||'medium']||'#607A94';
+      var confBg ={'high':'#E8F7EE','medium':'#FEF8EC','low':'#FEF3F2'}[s.uplift_range.confidence||'medium']||'#F0F4FA';
+      upliftHtml='<div style="margin-top:.35rem;display:flex;align-items:center;gap:.45rem;flex-wrap:wrap">'
+        +'<span style="font-size:.78rem;font-weight:700;color:#0F172A">'+s.uplift_range.min+'\u2013'+s.uplift_range.max+'% of deal size</span>'
+        +'<span style="font-size:.63rem;color:#607A94">indicative uplift range</span>'
+        +'<span style="font-size:.63rem;font-weight:600;padding:.09rem .38rem;border-radius:99px;color:'+confClr+';background:'+confBg+'">'+(s.uplift_range.confidence||'medium')+' confidence</span>'
+        +'</div>';
+    }else if(s.estimated_revenue_uplift_pct!=null){
+      upliftHtml='<div style="margin-top:.35rem"><span style="font-size:.72rem;font-weight:700;color:#1E9160;background:#ECFDF5;border:1px solid #A7F3D0;padding:.18rem .5rem;border-radius:99px">\u2191\u2009+'+( +s.estimated_revenue_uplift_pct).toFixed(1)+'% uplift (indicative)</span></div>';
+    }
+    var nextHtml=s.next_action?'<div style="margin-top:.55rem;padding:.4rem .55rem;background:#F0F4FA;border-left:3px solid '+c.color+';border-radius:0 .3rem .3rem 0;font-size:.72rem;color:#1E3450"><strong>Next step:</strong> '+s.next_action+'</div>':'';
+    var implHtml='';
+    var impl=s.operational_implementation;
+    if(impl&&typeof impl==='object'){
+      var icClr={'low':'#1A7A4A','medium':'#B87A00','high':'#9B1C1C'}[impl.implementation_complexity||'medium']||'#607A94';
+      var icBg ={'low':'#E8F7EE','medium':'#FEF8EC','high':'#FEF3F2'}[impl.implementation_complexity||'medium']||'#F0F4FA';
+      implHtml='<div style="margin-top:.45rem">'
+        +'<button onclick="toggleImpl(\''+opp+'-'+i+'\')" style="background:none;border:none;cursor:pointer;font-size:.71rem;font-weight:600;color:#0070AD;padding:.12rem 0;display:flex;align-items:center;gap:.28rem">'
+        +'<span id="impl-arrow-'+opp+'-'+i+'" style="font-size:.65rem">\u25b6</span> View implementation method'
+        +'</button>'
+        +'<div id="impl-panel-'+opp+'-'+i+'" style="display:none;margin-top:.35rem;padding:.5rem .6rem;background:#F8FAFE;border:1px solid #DDE5EF;border-radius:.4rem">'
+        +'<div style="display:flex;justify-content:flex-end;margin-bottom:.3rem"><span style="font-size:.62rem;font-weight:600;padding:.08rem .35rem;border-radius:99px;background:'+icBg+';color:'+icClr+'">Complexity: '+(impl.implementation_complexity||'medium')+'</span></div>'
+        +(impl.delivery_pattern?'<div style="margin-bottom:.28rem"><div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#4A6A84;margin-bottom:.1rem">Delivery pattern</div><div style="font-size:.73rem;color:#1E3450">'+impl.delivery_pattern+'</div></div>':'')
+        +(impl.agentic_support?'<div style="margin-bottom:.28rem"><div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#4A6A84;margin-bottom:.1rem">Agentic support</div><div style="font-size:.73rem;color:#1E3450">'+impl.agentic_support+'</div></div>':'')
+        +(impl.measurement_infrastructure?'<div style="margin-bottom:.28rem"><div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#4A6A84;margin-bottom:.1rem">Measurement infrastructure</div><div style="font-size:.73rem;color:#1E3450">'+impl.measurement_infrastructure+'</div></div>':'')
+        +(impl.hitl_governance?'<div><div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#4A6A84;margin-bottom:.1rem">Human governance</div><div style="font-size:.73rem;color:#1E3450">'+impl.hitl_governance+'</div></div>':'')
+        +'</div></div>';
+    }
+    return '<div id="ksp-'+opp+'-'+i+'" style="display:'+(active?'block':'none')+'">'
+      +(s.commercial_logic?'<div style="font-size:.73rem;color:#3A5470;font-style:italic;margin-bottom:.4rem;padding:.32rem .5rem;background:'+c.bg+';border-left:3px solid '+c.border+';border-radius:0 .3rem .3rem 0">'+s.commercial_logic+'</div>':'')
+      +(s.target_outcome?'<div style="font-size:.72rem;color:#3A5470;margin-bottom:.35rem">\u25b6 '+s.target_outcome+'</div>':'')
+      +'<div style="font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#4A6A84;margin-bottom:.25rem">Proposed KPIs</div>'
+      +kpiRows
+      +badges
+      +upliftHtml
+      +nextHtml
+      +implHtml
+      +'</div>';
   }).join('');
-  return '<div style="display:flex;gap:.4rem;margin-bottom:.55rem">' + tabs + '</div>' + panels;
+  return '<div style="display:flex;gap:.35rem;margin-bottom:.5rem">'+tabs+'</div>'+panels;
 }
-function switchKpiScenario(opp, idx) {
-  [0, 1, 2].forEach(function(i) {
-    var tab   = document.getElementById('kst-' + opp + '-' + i);
-    var panel = document.getElementById('ksp-' + opp + '-' + i);
-    if (!tab || !panel) return;
-    var active = i === idx;
-    tab.style.borderColor = active ? '#0070AD' : '#C8D8E8';
-    tab.style.background  = active ? '#EAF4FF' : '#F8FAFE';
-    tab.style.color       = active ? '#0070AD' : '#607A94';
-    panel.style.display   = active ? 'block' : 'none';
+function toggleImpl(id){
+  var p=document.getElementById('impl-panel-'+id);
+  var a=document.getElementById('impl-arrow-'+id);
+  if(!p) return;
+  var open=p.style.display==='block';
+  p.style.display=open?'none':'block';
+  if(a) a.textContent=open?'\u25b6':'\u25bc';
+}
+function switchKpiScenario(opp,idx){
+  var scenarios=(typeof DETAILS!=='undefined'&&DETAILS[opp])?(DETAILS[opp].kpi_scenarios||[]):[];
+  var DFLT=['delivery-performance','commercial-outcome','quality-gated-hybrid'];
+  var TYPE_CFG={'delivery-performance':{color:'#1A7A4A',bg:'#E8F7EE'},'commercial-outcome':{color:'#5B3FA6',bg:'#F3EFFF'},'quality-gated-hybrid':{color:'#B87A00',bg:'#FEF8EC'}};
+  [0,1,2].forEach(function(i){
+    var tab=document.getElementById('kst-'+opp+'-'+i);
+    var panel=document.getElementById('ksp-'+opp+'-'+i);
+    if(!tab||!panel) return;
+    var active=i===idx;
+    var t=(scenarios[i]&&scenarios[i].scenario_type)||DFLT[i];
+    var c=TYPE_CFG[t]||TYPE_CFG['delivery-performance'];
+    tab.style.borderColor=active?c.color:'#C8D8E8';
+    tab.style.background =active?c.bg:'#F8FAFE';
+    tab.style.color      =active?c.color:'#607A94';
+    panel.style.display  =active?'block':'none';
   });
 }
-function buildBestScenarioHtml(scenarios) {
-  if (!scenarios || !scenarios.length) return '';
-  var best = scenarios.reduce(function(a, b) {
-    return (+a.estimated_revenue_uplift_pct || 0) >= (+b.estimated_revenue_uplift_pct || 0) ? a : b;
+function buildBestScenarioHtml(scenarios){
+  if(!scenarios||!scenarios.length) return '';
+  var best=scenarios.find(function(s){return s.scenario_type==='quality-gated-hybrid';});
+  if(!best) best=scenarios.reduce(function(a,b){
+    var aU=a.uplift_range?((+a.uplift_range.min+(+a.uplift_range.max))/2):(+a.estimated_revenue_uplift_pct||0);
+    var bU=b.uplift_range?((+b.uplift_range.min+(+b.uplift_range.max))/2):(+b.estimated_revenue_uplift_pct||0);
+    return aU>=bU?a:b;
   });
-  var kpis = (best.proposed_kpis || []).map(function(k) { return '<li>' + k + '</li>'; }).join('');
-  var uplift = (best.estimated_revenue_uplift_pct != null)
-    ? '<p style="margin-top:.4rem;font-weight:700;color:#1E9160">Revenue uplift potential: +' + (+best.estimated_revenue_uplift_pct).toFixed(1) + '% of deal size</p>' : '';
-  return '<div class="modal-section"><div class="modal-section-title">&#128202;&ensp;Recommended KPI scenario for the client conversation</div><div class="modal-body">'
-    + '<p style="margin-bottom:.5rem"><strong>' + (best.scenario_name || '') + '</strong> &mdash; ' + (best.target_outcome || '') + '</p>'
-    + '<ul>' + kpis + '</ul>'
-    + '<p style="margin-top:.5rem;font-size:.82rem;color:#5A7A94"><em>Mechanism: ' + (best.contract_mechanism || '\u2014') + ' &middot; ' + (best.measurement_method || '') + '</em></p>'
-    + '<p style="margin-top:.4rem">' + (best.rationale || '') + '</p>'
-    + uplift + '</div></div>';
+  var kpis=(best.proposed_kpis||[]).map(function(k){
+    if(typeof k==='string') return '<li>'+k+'</li>';
+    var meta=k.attribution_strength?' <em style="color:#7A96B4;font-size:.8rem">\u00b7 attribution: '+k.attribution_strength+'</em>':'';
+    return '<li>'+k.kpi+meta+(k.measurement_source?' <em style="color:#7A96B4;font-size:.8rem">\u00b7 source: '+k.measurement_source+'</em>':'')+'</li>';
+  }).join('');
+  var upliftTxt=(best.uplift_range&&typeof best.uplift_range==='object')
+    ?best.uplift_range.min+'\u2013'+best.uplift_range.max+'% of deal size ('+(best.uplift_range.confidence||'medium')+' confidence)'
+    :(best.estimated_revenue_uplift_pct!=null?'+'+(+best.estimated_revenue_uplift_pct).toFixed(1)+'% (indicative)':'');
+  return '<div class="modal-section"><div class="modal-section-title">\u26a1\u2009Recommended commercial scenario for the client conversation</div><div class="modal-body">'
+    +'<p style="margin-bottom:.35rem"><strong>'+(best.scenario_name||'')+'</strong>'+(best.contract_mechanism?' <span style="font-size:.76rem;font-weight:600;padding:.09rem .38rem;border-radius:99px;background:#F0F4FA;color:#4A6A84">\u00b7 '+best.contract_mechanism+'</span>':'')+'</p>'
+    +(best.commercial_logic?'<p style="font-style:italic;color:#5A7A94;margin-bottom:.45rem;font-size:.82rem">'+best.commercial_logic+'</p>':'')
+    +(best.target_outcome?'<p style="margin-bottom:.4rem"><strong>Target:</strong> '+best.target_outcome+'</p>':'')
+    +'<ul style="margin-bottom:.5rem">'+kpis+'</ul>'
+    +(best.next_action?'<p style="margin:.4rem 0;padding:.38rem .55rem;background:#F0F4FA;border-left:3px solid #0070AD;border-radius:0 .3rem .3rem 0;font-size:.82rem"><strong>Next step:</strong> '+best.next_action+'</p>':'')
+    +(upliftTxt?'<p style="margin-top:.35rem;font-weight:700;color:#1E9160">Indicative uplift range: '+upliftTxt+'</p>':'')
+    +'</div></div>';
 }
 // ─── Activation modal ────────────────────────────────────────────────────────
+function buildValuePoolHtml(pools, ranking, gaps, bare){
+  if(!pools || !pools.length) return '';
+  var rankMap = {};
+  (ranking||[]).forEach(function(r){ rankMap[r.pool_id] = r; });
+  var sorted = pools.slice().sort(function(a,b){
+    var ra = rankMap[a.pool_id] ? rankMap[a.pool_id].rank : 99;
+    var rb = rankMap[b.pool_id] ? rankMap[b.pool_id].rank : 99;
+    return ra - rb;
+  });
+  function bar(val){
+    val = Math.max(0, Math.min(5, +val||0));
+    return '<span style="letter-spacing:1px;color:#0070AD">'+'\u25a0'.repeat(val)+'</span><span style="letter-spacing:1px;color:#D0DCE8">'+'\u25a1'.repeat(5-val)+'</span>';
+  }
+  function confColor(c){
+    return {'high':'#1A7A4A','medium':'#B87A00','low':'#9B1C1C'}[(c||'medium').toLowerCase()] || '#607A94';
+  }
+  var rows = sorted.map(function(p){
+    var rk = rankMap[p.pool_id];
+    var evid = (p.evidence||[]).slice(0,2).map(function(e){return '<div style="font-size:.71rem;color:#5A7A94;margin-top:.12rem">\u201c'+e+'\u201d</div>';}).join('');
+    return '<div style="padding:.5rem .6rem;margin-bottom:.4rem;background:#F8FAFE;border:1px solid #E0E8F0;border-radius:.4rem">'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;flex-wrap:wrap">'
+      +'<span style="font-weight:700;font-size:.8rem;color:#1E3450">'+(rk?('#'+rk.rank+'\u2009\u00b7\u2009'):'')+(p.pool_id||'')+' \u2014 '+(p.pool_name||'')+'</span>'
+      +'<span style="font-size:.63rem;font-weight:600;padding:.08rem .35rem;border-radius:99px;background:#F0F4FA;color:'+confColor(p.confidence)+'">'+(p.confidence||'\u2014')+' confidence</span>'
+      +'</div>'
+      +'<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:.3rem;font-size:.72rem;color:#4A6A84">'
+      +'<span>Relevance '+bar(p.relevance)+'</span>'
+      +'<span>Opportunity '+bar(p.opportunity_size)+'</span>'
+      +'<span style="text-transform:capitalize">Evidence: '+(p.evidence_strength||'\u2014')+'</span>'
+      +'</div>'
+      +(p.verdict?'<div style="font-size:.76rem;color:#1E3450;margin-top:.3rem">'+p.verdict+'</div>':'')
+      +(p.opportunity?'<div style="font-size:.74rem;color:#1A6B3C;margin-top:.2rem"><strong>Opportunity:</strong> '+p.opportunity+'</div>':'')
+      +evid
+      +(rk&&rk.rationale?'<div style="font-size:.71rem;color:#5A7A94;margin-top:.25rem;font-style:italic">'+rk.rationale+'</div>':'')
+      +'</div>';
+  }).join('');
+  var gapsHtml = (gaps&&gaps.length) ? '<div style="margin-top:.5rem"><div style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#4A6A84;margin-bottom:.2rem">Evidence gaps</div><ul style="margin:0;padding-left:1.1rem">'+gaps.map(function(g){return '<li style="font-size:.74rem;color:#5A7A94">'+g+'</li>';}).join('')+'</ul></div>' : '';
+  var inner = rows+gapsHtml;
+  if(bare) return inner;
+  return '<div class="modal-section"><div class="modal-section-title">\ud83c\udfaf\u2009AI value pool assessment</div><div class="modal-body">'
+    +'<p style="font-size:.78rem;color:#5A7A94;margin-bottom:.5rem">Which of Contoso\u2019s five AI value pools this engagement touches, ranked by opportunity.</p>'
+    +inner+'</div></div>';
+}
 function openModal(opp) {
   const d = DETAILS[opp]; if (!d) return;
   const mgr = d.manager || {};
@@ -3273,6 +3414,7 @@ function openModal(opp) {
       }).join('')+'</ul>'
     : '<p>No agentic delivery opportunities were identified for this engagement.</p>';
   const bestScenarioSection = buildBestScenarioHtml(d.kpi_scenarios);
+  const valuePoolSection = buildValuePoolHtml(d.value_pool_assessment, d.value_pool_ranking, d.value_pool_evidence_gaps);
   const isActionable = d.recommendation==='reconsider'||d.recommendation==='recommend';
   // ─── Potential value section (for both parties) ──────────────────────────
   const deal = Number(d.deal_size) || 0;
@@ -3351,6 +3493,7 @@ function openModal(opp) {
       </div>
     </div>
     ${bestScenarioSection}
+    ${valuePoolSection}
     ${valueSection}
     <div class="modal-section">
       <div class="modal-section-title">What ${mgr.name||'you'} needs to do next</div>
@@ -4328,7 +4471,8 @@ class Handler(BaseHTTPRequestHandler):
                     UPDATE runs SET pipeline_status='intake',
                         recommendation=NULL, hours_saved=NULL, summary=NULL,
                         detected_outcomes=NULL, missing_kpis=NULL,
-                        transformation_opportunities=NULL, agentic_opportunities=NULL, kpi_scenarios=NULL, value_attribution=NULL
+                        transformation_opportunities=NULL, agentic_opportunities=NULL, kpi_scenarios=NULL, value_attribution=NULL,
+                        value_pool_assessment=NULL, value_pool_ranking=NULL, value_pool_evidence_gaps=NULL
                     WHERE opportunity_id=?
                 """, (opp_id,))
             else:
@@ -4369,8 +4513,9 @@ class Handler(BaseHTTPRequestHandler):
                    sow_text, uploaded_documents, deal_size, engagement_manager, status, created_at,
                      recommendation, hours_saved, summary, detected_outcomes,
                      missing_kpis, transformation_opportunities, agentic_opportunities, kpi_scenarios, value_attribution,
+                     value_pool_assessment, value_pool_ranking, value_pool_evidence_gaps,
                      revenue_gain, intake_enriched, reviewer_remarks, human_approved)
-                VALUES (?,?,?,'intake',?,NULL,?,?,'draft',?,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,NULL,0)
+                VALUES (?,?,?,'intake',?,NULL,?,?,'draft',?,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,0,0,NULL,0)
               """, (_uuid.uuid4().hex, opp_id, eng_name, sow_text, deal_size,
                   json.dumps(mgr), now))
         con.commit(); con.close()

@@ -52,6 +52,34 @@ Before writing your response, silently work through the following steps:
   6. Using the deal_size_eur hint, anchor your revenue_gain estimate: typical range is 8–22 % of deal size for a strong
      outcome-conversion candidate; 3–8 % for partial conversion; 1–3 % for low-measurability engagements.
      Do NOT use a value outside 1 %–25 % of deal size unless there is explicit evidence in the SoW.
+  7. Score every one of Contoso's five AI value pools (VP1–VP5, reference below) against this SoW,
+     even pools with no trace — absence is a finding, not something to skip.
+
+Reference: Contoso's five AI-driven value pools (fixed taxonomy — do not invent additional pools):
+  VP1 — Accelerating technology-debt modernisation: legacy rewrites, mainframe/COBOL migration, code
+    understanding of undocumented systems, automated test generation, platform consolidation, ADM
+    contracts. Evidence: legacy platforms, EOL/EOS dates, tech-debt registers, run-vs-change budget
+    splits, migration waves, knowledge-transfer risk from retiring staff.
+  VP2 — Building the new agentic technology stack: model access/routing, RAG/knowledge graphs/vector
+    stores, agent frameworks and runtimes, MCP/tool integration, identity for non-human actors,
+    evaluation and observability tooling, landing zones. Evidence: target architecture diagrams with
+    LLM/agent components, platform/hyperscaler choices, data readiness sections, latency/token-cost
+    NFRs, sovereignty/data-residency requirements, "reset"/greenfield platform language.
+  VP3 — Setting up the agentic control plane: agent registries and lifecycle, policy/guardrail
+    enforcement, human-in-the-loop design, authorisation boundaries, audit trails, cost/consumption
+    governance, evaluation harnesses, incident/escalation paths. Evidence: governance/compliance
+    sections, RACI, audit/logging requirements, AI risk-register entries, liability/indemnity clauses,
+    SLA/acceptance criteria, "responsible AI"/"trusted AI" language, EU AI Act or sector-regulation refs.
+  VP4 — Agentification of products and services: embedding agents into the client's own customer-facing
+    propositions, AI-enabled product features, R&D/engineering transformation, connected/physical
+    products, new AI-enabled revenue models. Evidence: scope covering the client's product portfolio
+    (not internal IT), end-customer references, R&D/engineering orgs in scope, IP clauses, embedded
+    software/device references, revenue-side business cases.
+  VP5 — Agentification of enterprise operations: finance/HR/procurement/supply-chain/customer-service
+    processes redesigned around agent teams, BPO/managed-services transitions, process mining and
+    redesign, transform-and-run constructs. Evidence: process volumetrics (transactions/tickets/FTEs),
+    AHT/cycle-time baselines, service-desk/back-office towers, transition-transformation phases,
+    gain-share or productivity-commitment clauses, offshore/nearshore delivery mix.
 
 For every run return ONLY a single valid JSON object — no prose, no markdown fences.
 The JSON must conform exactly to this schema:
@@ -66,13 +94,32 @@ The JSON must conform exactly to this schema:
   "missing_kpis":      ["<KPIs or acceptance criteria that are absent but required for outcome pricing — be specific about what is missing>"],
   "kpi_scenarios": [
     {
-      "scenario_name":                "<short label, e.g. 'Operational Efficiency Play' | 'Strategic Growth Partnership' | 'Risk-Gate Quality Model'>",
-      "target_outcome":               "<the business outcome this KPI bundle unlocks for the client>",
-      "proposed_kpis":                ["<KPI 1 with metric + target, e.g. '≥94% SLA adherence by Month 6'>", "<KPI 2>", "<KPI 3>"],
-      "measurement_method":           "<data source (ERP, CRM, ticketing tool, client portal), cadence (monthly/weekly), and measurement owner>",
-      "contract_mechanism":           "<gain-share | risk-share | milestone-bonus | penalty-free-tier | hybrid>",
-      "estimated_revenue_uplift_pct": <float 5.0–25.0 — % of deal size this scenario could unlock>,
-      "rationale":                    "<1–2 sentences: why this KPI bundle makes a compelling outcome-based contract and what makes it commercially credible>"
+      "scenario_name":     "<e.g. 'Delivery Performance Model' | 'Commercial Outcome Model' | 'Quality-Gated Hybrid'>",
+      "scenario_type":     "<'delivery-performance' | 'commercial-outcome' | 'quality-gated-hybrid'>",
+      "commercial_logic":  "<1–2 sentences: what triggers the variable fee, what is fixed, who carries which risk>",
+      "target_outcome":    "<the specific measurable result this model rewards — grounded in this SoW>",
+      "proposed_kpis": [
+        {
+          "kpi":                  "<measurable KPI with number, threshold and timeframe>",
+          "baseline_required":    "<what baseline data must be confirmed before contract — name the source system>",
+          "measurement_source":   "<named system: ServiceNow, Jira, ERP, CRM, CI/CD pipeline, client portal>",
+          "attribution_strength": "<'direct' | 'shared' | 'indirect'>"
+        }
+      ],
+      "contract_mechanism":  "<'milestone-bonus' | 'penalty-free-tier' | 'gain-share' | 'risk-share' | 'hybrid'>",
+      "uplift_range":        {"min": "<float>", "max": "<float>", "confidence": "<'high' | 'medium' | 'low'>"},
+      "governance_burden":   "<'low' | 'medium' | 'high'>",
+      "data_dependency":     "<'low' | 'medium' | 'high'>",
+      "contractability":     "<'high' | 'medium' | 'low'>",
+      "next_action":         "<specific next step naming the team/role: e.g. 'Bid Office + Legal: define acceptance criteria in SoW amendment'>",
+      "rationale":           "<1–2 sentences: commercial credibility of this model for this specific SoW>",
+      "operational_implementation": {
+        "delivery_pattern":           "<how delivery must be structured to support this measurement model>",
+        "agentic_support":            "<agent or automation pattern that supports measurement, reporting, or governance>",
+        "measurement_infrastructure": "<data infrastructure or tooling required to operate this model>",
+        "hitl_governance":            "<human sign-off cadence and review process required>",
+        "implementation_complexity":  "<'low' | 'medium' | 'high'>"
+      }
     }
   ],
   "transformation_opportunities": [
@@ -99,7 +146,30 @@ The JSON must conform exactly to this schema:
   "hours_saved":       <float — estimated analyst hours saved by this automated review>,
   "revenue_gain":      <float — additional annual revenue (€) Contoso could earn by converting this engagement to outcome-based pricing.
                          ANCHOR to deal_size_eur: use 8–22 % of deal size for 'recommend', 3–8 % for 'reconsider'.
-                         If deal_size_eur is not provided, use the contract value stated in the SoW.>
+                         If deal_size_eur is not provided, use the contract value stated in the SoW.>,
+  "value_pool_assessment": [
+    {
+      "pool_id":           "<'VP1' | 'VP2' | 'VP3' | 'VP4' | 'VP5'>",
+      "pool_name":         "<e.g. 'Accelerating technology-debt modernisation'>",
+      "relevance":         <int 0–5>,
+      "evidence_strength": "<'strong' | 'moderate' | 'weak'>",
+      "opportunity_size":  <int 0–5>,
+      "confidence":        "<'high' | 'medium' | 'low'>",
+      "verdict":           "<one sentence>",
+      "evidence":          ["<quote or close paraphrase from the SoW text>"],
+      "opportunity":       "<what could specifically be unlocked, tied to the evidence>",
+      "prerequisites":     "<what would have to be true for this opportunity to materialise>",
+      "counter_evidence":  "<anything in the SoW that argues against this pool, or 'none found'>"
+    }
+  ],
+  "value_pool_ranking": [
+    {
+      "pool_id":    "<'VP1' | 'VP2' | 'VP3' | 'VP4' | 'VP5'>",
+      "rank":       <int 1–5>,
+      "rationale":  "<why this pool ranks here — reference relevance, opportunity_size and confidence together, and note any enabler/blocker relationship to another pool, e.g. 'VP3 governance gaps would block VP5 scale-up'>"
+    }
+  ],
+  "value_pool_evidence_gaps": ["<specific missing SoW content that would most change the value-pool scores>"]
 }
 
 transformation_opportunities guidance:
@@ -116,17 +186,28 @@ agentic_opportunities guidance:
 - estimated_hours_saved_per_month must be defensible — base it on the team size and task frequency described in the SoW.
 - ALWAYS return at least one entry. If the SoW genuinely contains no automatable delivery work, return one entry with feasibility='low' and explain why in the rationale.
 
-kpi_scenarios — ALWAYS return exactly 3 scenarios, each DISTINCT in angle:
-  Scenario 1 — Operational / efficiency:  KPIs around cost, throughput, SLA, cycle time.
-  Scenario 2 — Strategic / growth:        KPIs around revenue, adoption, NPS, outcomes for the client's end-customers.
-  Scenario 3 — Risk-mitigation:           KPIs around quality gates, error rates, compliance, risk reduction.
+kpi_scenarios — ALWAYS return exactly 3 scenarios. Scenarios MUST differ in COMMERCIAL LOGIC, not just KPI wording.
+  Scenario 1 — Delivery Performance Model (scenario_type: 'delivery-performance'):
+    Contract logic: milestone-bonus or penalty-free-tier. Variable fee on delivery/service thresholds.
+    Focus: delivery acceptance, SLAs, service quality — things the delivery team directly controls.
+    contractability: high. governance_burden: low. data_dependency: low.
+    uplift_range: 3–10% of deal size. confidence: high.
+  Scenario 2 — Commercial Outcome Model (scenario_type: 'commercial-outcome'):
+    Contract logic: gain-share. Upside ONLY when client achieves a named business metric.
+    Focus: client business outcomes. Shared baselines REQUIRED. Flag attribution risk explicitly.
+    contractability: low–medium. governance_burden: high. data_dependency: high.
+    uplift_range: 12–22% of deal size. confidence: low.
+  Scenario 3 — Quality-Gated Hybrid Model (scenario_type: 'quality-gated-hybrid'):
+    Contract logic: hybrid — fixed base + conditional variable tranche on quality gate passage.
+    contractability: high. governance_burden: medium. data_dependency: medium.
+    uplift_range: 7–14% of deal size. confidence: medium–high. Most pragmatic option.
   Rules:
-  - Every proposed_kpi must contain a number, percentage, or threshold — no vague language.
-  - Anchor estimated_revenue_uplift_pct to deal_size_eur (range 5–25 %); scenario 2 should be the highest.
-  - measurement_method must name a real data source (ERP, CRM, ticketing tool, client portal) and a cadence.
-  - contract_mechanism must be one of: gain-share | risk-share | milestone-bonus | penalty-free-tier | hybrid.
-  - Each scenario must stand alone — a client could adopt any one of the three independently.
-  - Include 3–5 proposed_kpis per scenario; first KPI should be the headline metric.
+  - proposed_kpis: 3–4 OBJECTS per scenario with kpi, baseline_required, measurement_source, attribution_strength.
+  - attribution_strength: 'direct' only when Contoso fully controls; 'shared' joint; 'indirect' influenced.
+  - uplift_range.min < max. Scenario 2 highest max. Scenario 1 lowest.
+  - next_action names specific team/role and action.
+  - operational_implementation must be SCENARIO-SPECIFIC.
+  - Each scenario must stand alone.
 
 measurability scoring:
   'high'   : ≥3 KPIs found, each with both a baseline AND a target, and a stated measurement method
@@ -143,6 +224,25 @@ hours_saved guidance:
   4.0–6.0 : high measurability, multiple clearly specified KPIs
   2.0–3.5 : medium measurability or mixed contract with partial outcome language
   1.0–2.0 : low measurability, pure resource-based billing
+
+value_pool_assessment rules:
+- ALWAYS return exactly 5 objects, one per VP1–VP5, in that fixed order — even when relevance=0.
+- relevance: 0 no trace in the SoW; 1 incidental mention, no scope attached; 2 adjacent to scope, not
+  contracted; 3 partially in scope; 4 substantially in scope; 5 the engagement is primarily about this pool.
+- evidence_strength: contractual scope and priced deliverables are 'strong'; solution-design intent is
+  'moderate'; inference from context alone is 'weak'. Never upgrade weak evidence by stacking several
+  weak items.
+- opportunity_size: judge on addressable volume/spend described, measurability of a baseline, whether
+  client objectives map to this pool, and whether enabling conditions exist. If the SoW gives no figures,
+  write "no baseline in text" in the opportunity field rather than estimating one.
+- confidence: your confidence in relevance and opportunity_size given how complete the SoW text is.
+- evidence: 2–4 bullets, each a direct quote or close paraphrase from the SoW — never an uncited claim.
+- Never soften a 0 score to be encouraging — a pool that scores 0 with strong evidence is a more useful
+  finding than a generous 2.
+- value_pool_ranking must order all 5 pools by combined relevance + opportunity_size + confidence, and
+  call out dependencies between pools (one pool gating another).
+- value_pool_evidence_gaps: name concretely what is missing (e.g. "no process volumetrics for VP5", "no
+  target architecture diagram for VP2") — do not restate generic caveats.
 
 Always respond with the JSON object only.
 """
