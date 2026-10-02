@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Container entrypoint: runs the 2 agent servers + dashboard in one container.
+# Container entrypoint: runs the 4 agent servers + dashboard in one container.
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-$(pwd)}"
@@ -10,6 +10,8 @@ PORT="${PORT:-5050}"
 HOST="${HOST:-0.0.0.0}"
 SCAN_PORT="${SCAN_AGENT_PORT:-8088}"
 INTAKE_PORT="${INTAKE_AGENT_PORT:-8087}"
+REVIEW_PORT="${REVIEW_AGENT_PORT:-8089}"
+CLARIFICATION_PORT="${CLARIFICATION_AGENT_PORT:-8090}"
 DB_PATH="${DB_PATH:-/data/runs.db}"
 
 mkdir -p "$(dirname "$DB_PATH")"
@@ -110,19 +112,27 @@ PY
 
 term() {
   echo "[stop] forwarding signal"
-  kill "$SCAN_PID" "$INTAKE_PID" 2>/dev/null || true
-  wait "$SCAN_PID" "$INTAKE_PID" 2>/dev/null || true
+  kill "$SCAN_PID" "$INTAKE_PID" "$REVIEW_PID" "$CLARIFICATION_PID" 2>/dev/null || true
+  wait "$SCAN_PID" "$INTAKE_PID" "$REVIEW_PID" "$CLARIFICATION_PID" 2>/dev/null || true
   exit 0
 }
 trap term INT TERM
 
-echo "[run] scan agent   → :${SCAN_PORT}"
+echo "[run] scan agent          → :${SCAN_PORT}"
 ${PYTHON_EXEC} agent.py &
 SCAN_PID=$!
 
-echo "[run] intake agent → :${INTAKE_PORT}"
+echo "[run] intake agent        → :${INTAKE_PORT}"
 ${PYTHON_EXEC} agents/intake_agent.py &
 INTAKE_PID=$!
+
+echo "[run] review agent        → :${REVIEW_PORT}"
+${PYTHON_EXEC} agents/review_agent.py &
+REVIEW_PID=$!
+
+echo "[run] clarification agent → :${CLARIFICATION_PORT}"
+${PYTHON_EXEC} agents/clarification_agent.py &
+CLARIFICATION_PID=$!
 
 # brief wait so the agents bind before the dashboard starts accepting traffic
 sleep 3

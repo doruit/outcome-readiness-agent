@@ -17,6 +17,7 @@ import io
 import json
 import os
 import sqlite3
+import re
 import urllib.request
 import uuid as _uuid
 from datetime import datetime, timezone
@@ -188,11 +189,23 @@ def _call_agent(port: int, input_text: str) -> dict:
         headers={"Content-Type": "application/json"}, method="POST")
     with urllib.request.urlopen(req, timeout=120) as resp:
         raw = resp.read().decode("utf-8")
+    wrapper = json.loads(raw)
+    # Agent server returns HTTP 200 with an error envelope on upstream failures
+    if isinstance(wrapper, dict) and "code" in wrapper and "output" not in wrapper:
+        raise RuntimeError(f"agent error: {wrapper.get('message') or wrapper['code']}")
     try:
-        wrapper = json.loads(raw)
-        return json.loads(wrapper["output"][0]["content"][0]["text"])
-    except (KeyError, IndexError, json.JSONDecodeError):
-        return json.loads(raw)
+        text = wrapper["output"][0]["content"][0]["text"]
+    except (KeyError, IndexError, TypeError):
+        return wrapper
+    # Models sometimes wrap JSON in a ```json ... ``` fence despite instructions not to
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```[a-zA-Z]*\n?", "", stripped)
+        stripped = re.sub(r"\n?```$", "", stripped)
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        return wrapper
 
 def call_agent_with_text(opp_id, eng_name, sow_text, deal_size=None, mgr=None, extra_instructions=None):
     deal_hint = f"\ndeal_size_eur: {deal_size}" if deal_size else ""
@@ -1904,7 +1917,7 @@ code{
     <button onclick="scanMissing()" class="topbar-action-btn" id="btn-scan-missing" title="Re-run extraction agent on all col 2+ cards that are missing AI data">&#9881;&ensp;Scan Missing</button>
     <button onclick="confirmResetDemo()" class="topbar-action-btn topbar-reset-btn" title="Reset all data and return all cards to Intake">&#8635;&ensp;Reset Demo</button>
     <a href="/docs" target="_blank" title="Intro to outcome-based models, value attribution, and how this solution applies the pattern">&#128218;&ensp;Docs &amp; About</a>
-    <a href="https://green-forest-031d1210f.4.azurestaticapps.net/deal" target="_blank" rel="noopener" title="Outcome-Based Maturity Assessment">&#127919;&ensp;Outcome Based Maturity Assessment</a>
+    <a href="https://blue-desert-08c52270f.6.azurestaticapps.net/deal" target="_blank" rel="noopener" title="Outcome-Based Maturity Assessment">&#127919;&ensp;Outcome Based Maturity Assessment</a>
     <a href="/">&#8635; Refresh</a>
   </div>
 </div>
@@ -3122,7 +3135,7 @@ function openDetail(opp) {
       </div>
       ${valuePoolRowsHtml ? `<div class="ds">
         <div class="ds-label">\u{1F3AF}&ensp;AI Value Pool Assessment</div>
-        <div style="font-size:.71rem;color:#AABFCC;margin-bottom:.45rem">Which of Contoso's five AI value pools this engagement touches, ranked by opportunity</div>
+        <div style="font-size:.71rem;color:#AABFCC;margin-bottom:.45rem">Which of Capgemini's five AI value pools this engagement touches, ranked by opportunity</div>
         ${valuePoolRowsHtml}
       </div>` : ''}
       <div class="ds">
@@ -3334,6 +3347,16 @@ function buildBestScenarioHtml(scenarios){
 // ─── Activation modal ────────────────────────────────────────────────────────
 function buildValuePoolHtml(pools, ranking, gaps, bare){
   if(!pools || !pools.length) return '';
+  function capgeminiValuePoolName(pool){
+    const names = {
+      VP1: 'Accumulated Debt: Enterprise Technology Modernization',
+      VP2: 'New Agentic Technology Stack',
+      VP3: 'New Agentic Control Plane',
+      VP4: 'New Agentic Products & Services',
+      VP5: 'New Agentic Enterprise Processes'
+    };
+    return names[pool.pool_id] || pool.pool_name || '';
+  }
   var rankMap = {};
   (ranking||[]).forEach(function(r){ rankMap[r.pool_id] = r; });
   var sorted = pools.slice().sort(function(a,b){
@@ -3350,10 +3373,11 @@ function buildValuePoolHtml(pools, ranking, gaps, bare){
   }
   var rows = sorted.map(function(p){
     var rk = rankMap[p.pool_id];
+    var poolName = capgeminiValuePoolName(p);
     var evid = (p.evidence||[]).slice(0,2).map(function(e){return '<div style="font-size:.71rem;color:#5A7A94;margin-top:.12rem">\u201c'+e+'\u201d</div>';}).join('');
     return '<div style="padding:.5rem .6rem;margin-bottom:.4rem;background:#F8FAFE;border:1px solid #E0E8F0;border-radius:.4rem">'
       +'<div style="display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;flex-wrap:wrap">'
-      +'<span style="font-weight:700;font-size:.8rem;color:#1E3450">'+(rk?('#'+rk.rank+'\u2009\u00b7\u2009'):'')+(p.pool_id||'')+' \u2014 '+(p.pool_name||'')+'</span>'
+      +'<span style="font-weight:700;font-size:.8rem;color:#1E3450">'+(rk?('#'+rk.rank+'\u2009\u00b7\u2009'):'')+(p.pool_id||'')+' \u2014 '+poolName+'</span>'
       +'<span style="font-size:.63rem;font-weight:600;padding:.08rem .35rem;border-radius:99px;background:#F0F4FA;color:'+confColor(p.confidence)+'">'+(p.confidence||'\u2014')+' confidence</span>'
       +'</div>'
       +'<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:.3rem;font-size:.72rem;color:#4A6A84">'
@@ -3371,7 +3395,7 @@ function buildValuePoolHtml(pools, ranking, gaps, bare){
   var inner = rows+gapsHtml;
   if(bare) return inner;
   return '<div class="modal-section"><div class="modal-section-title">\ud83c\udfaf\u2009AI value pool assessment</div><div class="modal-body">'
-    +'<p style="font-size:.78rem;color:#5A7A94;margin-bottom:.5rem">Which of Contoso\u2019s five AI value pools this engagement touches, ranked by opportunity.</p>'
+    +'<p style="font-size:.78rem;color:#5A7A94;margin-bottom:.5rem">Which of Capgemini\u2019s five AI value pools this engagement touches, ranked by opportunity.</p>'
     +inner+'</div></div>';
 }
 function openModal(opp) {
@@ -3499,7 +3523,7 @@ function openModal(opp) {
       <div class="modal-section-title">What ${mgr.name||'you'} needs to do next</div>
       <div class="modal-body">
         ${isActionable ? `<ul>
-          <li>Run an <a href="https://green-forest-031d1210f.4.azurestaticapps.net/deal" target="_blank" rel="noopener"><strong>OutcomeIQ</strong></a> maturity assessment to verify every element required for an outcome-based model is in place</li>
+          <li>Run an <a href="https://blue-desert-08c52270f.6.azurestaticapps.net/deal" target="_blank" rel="noopener"><strong>OutcomeIQ</strong></a> maturity assessment to verify every element required for an outcome-based model is in place</li>
           <li>Contact the client to request missing KPI baselines</li>
           <li>Propose a measurement methodology and agree a control group design</li>
           <li>Engage Contoso's commercial team to model the outcome-linked fee structure</li>
@@ -3507,7 +3531,7 @@ function openModal(opp) {
           <li>Return the updated SoW for a re-scan before contract execution</li>
           ${agenticItems.length ? '<li>Review the <strong>agentic delivery opportunities</strong> above with your delivery lead &mdash; these are independent of the commercial-model decision and can be pursued in parallel</li>' : ''}
         </ul>` : `<ul>
-          <li>Run an <a href="https://green-forest-031d1210f.4.azurestaticapps.net/deal" target="_blank" rel="noopener"><strong>OutcomeIQ</strong></a> maturity assessment to confirm which outcome-based readiness elements are missing</li>
+          <li>Run an <a href="https://blue-desert-08c52270f.6.azurestaticapps.net/deal" target="_blank" rel="noopener"><strong>OutcomeIQ</strong></a> maturity assessment to confirm which outcome-based readiness elements are missing</li>
           <li>Log the rationale for ruling out outcome-based pricing</li>
           <li>Schedule a re-scoping conversation if the client relationship allows</li>
           <li>Flag for re-review at the next contract renewal or scope change</li>

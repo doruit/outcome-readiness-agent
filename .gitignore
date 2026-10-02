@@ -15,6 +15,7 @@ build/
 
 # ── Data & state (generated at runtime) ─────────────────────────────────────
 runs.db
+/docs/Data & AI_Generative AI Flipbook_08112026.pdf
 
 # ── macOS ────────────────────────────────────────────────────────────────────
 .DS_Store

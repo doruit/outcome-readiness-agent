@@ -95,6 +95,7 @@ async def main() -> None:
         project_endpoint=ENDPOINT,
         model_deployment_name=MODEL,
         credential=credential,
+        use_latest_version=True,
     ).as_agent(name=AGENT_NAME, instructions=INSTRUCTIONS) as agent:
         await from_agent_framework(agent).run_async(port=PORT)
 

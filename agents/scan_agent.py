@@ -49,30 +49,30 @@ Before writing your response, silently work through the following steps:
   5. Identify each distinct billable element and decide whether it could carry an outcome-linked fee.
   6. Anchor revenue_gain to deal_size_eur if provided: 8–22 % of deal size for 'recommend',
      3–8 % for 'reconsider'. Stay within 1 %–25 % of deal size.
-  7. Score every one of Contoso's five AI value pools (VP1–VP5, reference below) against this SoW,
+  7. Score every one of Capgemini's five AI value pools (VP1–VP5, reference below) against this SoW,
      even pools with no trace — absence is a finding, not something to skip.
 
-Reference: Contoso's five AI-driven value pools (fixed taxonomy — do not invent additional pools):
-  VP1 — Accelerating technology-debt modernisation: legacy rewrites, mainframe/COBOL migration, code
+Reference: Capgemini's five AI value pools (fixed taxonomy — do not invent additional pools):
+  VP1 — Accumulated Debt: Enterprise Technology Modernization: legacy rewrites, mainframe/COBOL migration, code
     understanding of undocumented systems, automated test generation, platform consolidation, ADM
     contracts. Evidence: legacy platforms, EOL/EOS dates, tech-debt registers, run-vs-change budget
     splits, migration waves, knowledge-transfer risk from retiring staff.
-  VP2 — Building the new agentic technology stack: model access/routing, RAG/knowledge graphs/vector
+  VP2 — New Agentic Technology Stack: model access/routing, RAG/knowledge graphs/vector
     stores, agent frameworks and runtimes, MCP/tool integration, identity for non-human actors,
     evaluation and observability tooling, landing zones. Evidence: target architecture diagrams with
     LLM/agent components, platform/hyperscaler choices, data readiness sections, latency/token-cost
     NFRs, sovereignty/data-residency requirements, "reset"/greenfield platform language.
-  VP3 — Setting up the agentic control plane: agent registries and lifecycle, policy/guardrail
+  VP3 — New Agentic Control Plane: agent registries and lifecycle, policy/guardrail
     enforcement, human-in-the-loop design, authorisation boundaries, audit trails, cost/consumption
     governance, evaluation harnesses, incident/escalation paths. Evidence: governance/compliance
     sections, RACI, audit/logging requirements, AI risk-register entries, liability/indemnity clauses,
     SLA/acceptance criteria, "responsible AI"/"trusted AI" language, EU AI Act or sector-regulation refs.
-  VP4 — Agentification of products and services: embedding agents into the client's own customer-facing
+  VP4 — New Agentic Products & Services: embedding agents into the client's own customer-facing
     propositions, AI-enabled product features, R&D/engineering transformation, connected/physical
     products, new AI-enabled revenue models. Evidence: scope covering the client's product portfolio
     (not internal IT), end-customer references, R&D/engineering orgs in scope, IP clauses, embedded
     software/device references, revenue-side business cases.
-  VP5 — Agentification of enterprise operations: finance/HR/procurement/supply-chain/customer-service
+  VP5 — New Agentic Enterprise Processes: finance/HR/procurement/supply-chain/customer-service
     processes redesigned around agent teams, BPO/managed-services transitions, process mining and
     redesign, transform-and-run constructs. Evidence: process volumetrics (transactions/tickets/FTEs),
     AHT/cycle-time baselines, service-desk/back-office towers, transition-transformation phases,
@@ -145,7 +145,7 @@ Return ONLY a single valid JSON object — no prose, no markdown fences.
   "value_pool_assessment": [
     {
       "pool_id":           "<'VP1' | 'VP2' | 'VP3' | 'VP4' | 'VP5'>",
-      "pool_name":         "<e.g. 'Accelerating technology-debt modernisation'>",
+      "pool_name":         "<one of: 'Accumulated Debt: Enterprise Technology Modernization' | 'New Agentic Technology Stack' | 'New Agentic Control Plane' | 'New Agentic Products & Services' | 'New Agentic Enterprise Processes'>",
       "relevance":         <int 0–5>,
       "evidence_strength": "<'strong' | 'moderate' | 'weak'>",
       "opportunity_size":  <int 0–5>,
@@ -255,6 +255,7 @@ async def main() -> None:
         project_endpoint=ENDPOINT,
         model_deployment_name=MODEL,
         credential=credential,
+        use_latest_version=True,
     ).as_agent(name=AGENT_NAME, instructions=INSTRUCTIONS) as agent:
         await from_agent_framework(agent).run_async(port=PORT)
 
